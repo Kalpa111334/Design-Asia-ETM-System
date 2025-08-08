@@ -25,6 +25,9 @@ export interface Task {
   total_pause_duration?: number;
   hasApprovedProof?: boolean;
   task_proofs?: TaskProof[];
+  proof_photo_url?: string;
+  completion_notes?: string;
+  updated_at?: string;
 }
 
 export interface TaskProof {
