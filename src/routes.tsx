@@ -13,7 +13,9 @@ import Chat from './pages/Chat';
 import Reports from './pages/admin/Reports';
 import TaskPool from './pages/admin/TaskPool';
 import LocationDashboard from './pages/admin/LocationDashboard';
-import EmployeeTrackingMap from './components/EmployeeTrackingMap';
+import EmployeeTrackingMapOSM from './components/EmployeeTrackingMapOSM';
+import Meetings from './pages/admin/Meetings';
+import PermissionsSettings from './pages/admin/PermissionsSettings';
 
 // Employee Pages
 import EmployeeDashboard from './pages/employee/Dashboard';
@@ -40,12 +42,14 @@ export default function AppRoutes() {
             <Route path="tasks/pool" element={<TaskPool />} />
             <Route path="tasks/create" element={<CreateTask />} />
             <Route path="tasks/:taskId" element={<TaskView />} />
-            <Route path="tracking" element={<EmployeeTrackingMap />} />
+            <Route path="tracking" element={<EmployeeTrackingMapOSM />} />
             <Route path="reports" element={<Reports />} />
             <Route path="analytics" element={<Analytics />} />
             <Route path="team" element={<Team />} />
             <Route path="chat" element={<Chat />} />
             <Route path="location" element={<LocationDashboard />} />
+            <Route path="meetings" element={<Meetings />} />
+            <Route path="permissions" element={<PermissionsSettings />} />
             <Route index element={<Navigate to="/admin/dashboard" replace />} />
           </Routes>
         </PrivateRoute>

@@ -9,6 +9,10 @@ import {
   AdjustmentsIcon,
   ExclamationIcon,
   ArrowLeftIcon,
+  SearchIcon,
+  RefreshIcon,
+  ViewGridIcon,
+  MapIcon,
 } from '@heroicons/react/outline';
 import toast from 'react-hot-toast';
 import { GeofencingService } from '../services/GeofencingService';
@@ -33,22 +37,450 @@ interface EmployeeLocation {
   address?: string;
 }
 
+// Enhanced map container for Sri Lanka with responsive design
 const mapContainerStyle = {
   width: '100%',
-  height: 'calc(100vh - 16rem)',
-  borderRadius: '0.5rem',
+  height: 'calc(100vh - 12rem)',
+  borderRadius: '12px',
+  border: '2px solid #e5e7eb',
+  boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)',
 };
 
-const defaultCenter = { lat: 7.8731, lng: 80.7718 };
+// Sri Lanka center coordinates with better positioning for higher zoom
+const sriLankaCenter = { 
+  lat: 7.8731, // Central Sri Lanka (Kandy area)
+  lng: 80.7718 
+};
 
-const mapOptions = {
+// Enhanced map options focused on roads only
+const customMapOptions = {
   disableDefaultUI: false,
   zoomControl: true,
-  mapTypeControl: true,
-  streetViewControl: false,
+  mapTypeControl: false, // Disable map type control for road-only view
+  streetViewControl: true,
   fullscreenControl: true,
+  gestureHandling: 'greedy',
+  minZoom: 16, // Higher minimum zoom to keep focus on roads
+  maxZoom: 25, // Ultra-high zoom for street-level detail
+  restriction: {
+    latLngBounds: {
+      north: 9.8317,  // Point Pedro (Northern tip)
+      south: 5.9169,  // Dondra Head (Southern tip)
+      west: 79.6951,  // Kalpitiya (Western coast)  
+      east: 81.8914,  // Sangamankanda Point (Eastern coast)
+    },
+    strictBounds: true, // Keep focus on Sri Lanka
+  },
   styles: [
-    { featureType: 'poi', elementType: 'labels', stylers: [{ visibility: 'off' }] },
+    // Enhanced modern map styling with shadows and depth
+    {
+      featureType: 'all',
+      elementType: 'all',
+      stylers: [{ visibility: 'on' }],
+    },
+    // Enhanced landscape with vibrant gradient effect
+    {
+      featureType: 'landscape',
+      elementType: 'geometry',
+      stylers: [
+        { visibility: 'on' },
+        { color: '#f0f9ff' },
+        { lightness: 20 },
+        { saturation: 15 }
+      ],
+    },
+    // Terrain and natural features with tropical colors
+    {
+      featureType: 'landscape.natural',
+      elementType: 'geometry',
+      stylers: [
+        { visibility: 'on' },
+        { color: '#dcfce7' },
+        { lightness: 15 },
+        { saturation: 25 }
+      ],
+    },
+    // Major highways with premium orange styling and enhanced lane markings
+    {
+      featureType: 'road.highway',
+      elementType: 'geometry',
+      stylers: [
+        { visibility: 'on' },
+        { color: '#ff6b35' },
+        { weight: 14 },
+        { saturation: 120 },
+        { lightness: 0 }
+      ],
+    },
+    {
+      featureType: 'road.highway',
+      elementType: 'geometry.stroke',
+      stylers: [
+        { visibility: 'on' },
+        { color: '#ff4500' },
+        { weight: 4 }
+      ],
+    },
+    {
+      featureType: 'road.highway',
+      elementType: 'labels',
+      stylers: [
+        { visibility: 'on' },
+        { color: '#ffffff' },
+        { weight: 'bold' },
+        { gamma: 1.8 },
+        { lightness: 10 }
+      ],
+    },
+    // Highway lane markings
+    {
+      featureType: 'road.highway',
+      elementType: 'labels.text.stroke',
+      stylers: [
+        { visibility: 'on' },
+        { color: '#000000' },
+        { weight: 2 }
+      ],
+    },
+    // Arterial roads with enhanced blue styling and lane visibility
+    {
+      featureType: 'road.arterial',
+      elementType: 'geometry',
+      stylers: [
+        { visibility: 'on' },
+        { color: '#1e40af' },
+        { weight: 10 },
+        { saturation: 100 },
+        { lightness: -5 }
+      ],
+    },
+    {
+      featureType: 'road.arterial',
+      elementType: 'geometry.stroke',
+      stylers: [
+        { visibility: 'on' },
+        { color: '#1e3a8a' },
+        { weight: 3 }
+      ],
+    },
+    {
+      featureType: 'road.arterial',
+      elementType: 'labels',
+      stylers: [
+        { visibility: 'on' },
+        { color: '#ffffff' },
+        { weight: 'bold' },
+        { gamma: 1.6 }
+      ],
+    },
+    // Arterial road lane markings
+    {
+      featureType: 'road.arterial',
+      elementType: 'labels.text.stroke',
+      stylers: [
+        { visibility: 'on' },
+        { color: '#000000' },
+        { weight: 1.5 }
+      ],
+    },
+    // Local roads with enhanced green styling
+    {
+      featureType: 'road.local',
+      elementType: 'geometry',
+      stylers: [
+        { visibility: 'on' },
+        { color: '#059669' },
+        { weight: 6 },
+        { saturation: 80 },
+        { lightness: 5 }
+      ],
+    },
+    {
+      featureType: 'road.local',
+      elementType: 'geometry.stroke',
+      stylers: [
+        { visibility: 'on' },
+        { color: '#047857' },
+        { weight: 1.5 }
+      ],
+    },
+    {
+      featureType: 'road.local',
+      elementType: 'labels',
+      stylers: [
+        { visibility: 'on' },
+        { color: '#ffffff' },
+        { weight: 'bold' },
+        { gamma: 1.4 }
+      ],
+    },
+    // Other roads with enhanced white styling and better contrast
+    {
+      featureType: 'road',
+      elementType: 'geometry',
+      stylers: [
+        { visibility: 'on' },
+        { color: '#f8fafc' },
+        { weight: 5 },
+        { gamma: 1.3 },
+        { lightness: 10 }
+      ],
+    },
+    {
+      featureType: 'road',
+      elementType: 'geometry.stroke',
+      stylers: [
+        { visibility: 'on' },
+        { color: '#cbd5e1' },
+        { weight: 1.5 }
+      ],
+    },
+    {
+      featureType: 'road',
+      elementType: 'labels',
+      stylers: [
+        { visibility: 'on' },
+        { color: '#1e293b' },
+        { gamma: 1.8 },
+        { weight: 'bold' }
+      ],
+    },
+    // Enhanced water features with tropical blue depth
+    {
+      featureType: 'water',
+      elementType: 'geometry',
+      stylers: [
+        { visibility: 'on' },
+        { color: '#0ea5e9' },
+        { lightness: 15 },
+        { saturation: 60 }
+      ],
+    },
+    {
+      featureType: 'water',
+      elementType: 'geometry.stroke',
+      stylers: [
+        { visibility: 'on' },
+        { color: '#0284c7' },
+        { weight: 2 }
+      ],
+    },
+    {
+      featureType: 'water',
+      elementType: 'labels',
+      stylers: [
+        { visibility: 'on' },
+        { color: '#ffffff' },
+        { weight: 'bold' },
+        { gamma: 1.6 }
+      ],
+    },
+    // Enhanced parks and natural features with vibrant green
+    {
+      featureType: 'poi.park',
+      elementType: 'geometry',
+      stylers: [
+        { visibility: 'on' },
+        { color: '#22c55e' },
+        { lightness: 25 },
+        { saturation: 50 }
+      ],
+    },
+    {
+      featureType: 'poi.park',
+      elementType: 'geometry.stroke',
+      stylers: [
+        { visibility: 'on' },
+        { color: '#16a34a' },
+        { weight: 2 }
+      ],
+    },
+    {
+      featureType: 'poi.park',
+      elementType: 'labels',
+      stylers: [
+        { visibility: 'on' },
+        { color: '#ffffff' },
+        { weight: 'bold' },
+        { gamma: 1.5 }
+      ],
+    },
+    // Show important landmarks and attractions with golden styling
+    {
+      featureType: 'poi.attraction',
+      elementType: 'geometry',
+      stylers: [
+        { visibility: 'on' },
+        { color: '#f59e0b' },
+        { lightness: 15 },
+        { saturation: 80 }
+      ],
+    },
+    {
+      featureType: 'poi.attraction',
+      elementType: 'labels',
+      stylers: [
+        { visibility: 'on' },
+        { color: '#ffffff' },
+        { weight: 'bold' },
+        { gamma: 1.7 }
+      ],
+    },
+    // Show important government buildings with purple styling
+    {
+      featureType: 'poi.government',
+      elementType: 'geometry',
+      stylers: [
+        { visibility: 'on' },
+        { color: '#8b5cf6' },
+        { lightness: 15 },
+        { saturation: 70 }
+      ],
+    },
+    {
+      featureType: 'poi.government',
+      elementType: 'labels',
+      stylers: [
+        { visibility: 'on' },
+        { color: '#ffffff' },
+        { weight: 'bold' },
+        { gamma: 1.6 }
+      ],
+    },
+    // Show hospitals and medical facilities with red styling
+    {
+      featureType: 'poi.medical',
+      elementType: 'geometry',
+      stylers: [
+        { visibility: 'on' },
+        { color: '#ef4444' },
+        { lightness: 15 },
+        { saturation: 80 }
+      ],
+    },
+    {
+      featureType: 'poi.medical',
+      elementType: 'labels',
+      stylers: [
+        { visibility: 'on' },
+        { color: '#ffffff' },
+        { weight: 'bold' },
+        { gamma: 1.6 }
+      ],
+    },
+    // Hide less important POIs
+    {
+      featureType: 'poi.business',
+      elementType: 'all',
+      stylers: [{ visibility: 'off' }],
+    },
+    {
+      featureType: 'poi.place_of_worship',
+      elementType: 'all',
+      stylers: [{ visibility: 'off' }],
+    },
+    {
+      featureType: 'poi.school',
+      elementType: 'all',
+      stylers: [{ visibility: 'off' }],
+    },
+    {
+      featureType: 'poi.sports_complex',
+      elementType: 'all',
+      stylers: [{ visibility: 'off' }],
+    },
+    // Enhanced transit with vibrant styling
+    {
+      featureType: 'transit.station',
+      elementType: 'geometry',
+      stylers: [
+        { visibility: 'on' },
+        { color: '#6366f1' },
+        { lightness: 20 },
+        { saturation: 80 }
+      ],
+    },
+    {
+      featureType: 'transit.station',
+      elementType: 'labels',
+      stylers: [
+        { visibility: 'on' },
+        { color: '#ffffff' },
+        { weight: 'bold' },
+        { gamma: 1.6 }
+      ],
+    },
+    {
+      featureType: 'transit.line',
+      elementType: 'geometry',
+      stylers: [
+        { visibility: 'on' },
+        { color: '#4f46e5' },
+        { weight: 3 }
+      ],
+    },
+    // Enhanced country borders with premium styling
+    {
+      featureType: 'administrative.country',
+      elementType: 'geometry.stroke',
+      stylers: [
+        { visibility: 'on' },
+        { color: '#dc2626' },
+        { weight: 4 }
+      ],
+    },
+    {
+      featureType: 'administrative.country',
+      elementType: 'labels',
+      stylers: [
+        { visibility: 'on' },
+        { color: '#ffffff' },
+        { weight: 'bold' },
+        { gamma: 1.8 }
+      ],
+    },
+    // Enhanced province/state borders with better visibility
+    {
+      featureType: 'administrative.province',
+      elementType: 'geometry.stroke',
+      stylers: [
+        { visibility: 'on' },
+        { color: '#ea580c' },
+        { weight: 3 }
+      ],
+    },
+    {
+      featureType: 'administrative.province',
+      elementType: 'labels',
+      stylers: [
+        { visibility: 'on' },
+        { color: '#ffffff' },
+        { weight: 'bold' },
+        { gamma: 1.7 }
+      ],
+    },
+    // City and locality labels with enhanced contrast
+    {
+      featureType: 'administrative.locality',
+      elementType: 'labels',
+      stylers: [
+        { visibility: 'on' },
+        { color: '#1e293b' },
+        { weight: 'bold' },
+        { gamma: 1.6 }
+      ],
+    },
+    // Neighborhood labels with better readability
+    {
+      featureType: 'administrative.neighborhood',
+      elementType: 'labels',
+      stylers: [
+        { visibility: 'on' },
+        { color: '#475569' },
+        { weight: 'bold' },
+        { gamma: 1.4 }
+      ],
+    },
   ],
 };
 
@@ -60,37 +492,292 @@ export default function EmployeeTrackingMap() {
 
   const navigate = useNavigate();
   const [locations, setLocations] = useState<EmployeeLocation[]>([]);
-  const [selectedLocation, setSelectedLocation] = useState<EmployeeLocation | null>(null);
+  const [selectedEmployee, setSelectedEmployee] = useState<EmployeeLocation | null>(null);
   const [showInactive, setShowInactive] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
   const mapRef = useRef<google.maps.Map>();
   const [addressCache, setAddressCache] = useState<Record<string, string>>({});
-
-  // Path tracking state
-  const [movementPath, setMovementPath] = useState<Array<{ lat: number; lng: number; timestamp: string }>>([]);
-  const [turnPoints, setTurnPoints] = useState<Array<{ lat: number; lng: number; angle: number; timestamp: string }>>([]);
-  const [totalDistanceKm, setTotalDistanceKm] = useState<number>(0);
-  const [dailyDistanceKm, setDailyDistanceKm] = useState<number>(0);
-  const [speedKmh, setSpeedKmh] = useState<number>(0);
-  const [headingDeg, setHeadingDeg] = useState<number>(0);
-  const [followSelected, setFollowSelected] = useState<boolean>(true);
-  const [lookbackHours, setLookbackHours] = useState<number>(2);
-  const [dailyMovingMin, setDailyMovingMin] = useState<number>(0);
-  const [dailyIdleMin, setDailyIdleMin] = useState<number>(0);
-  const [dailyAvgSpeedKmh, setDailyAvgSpeedKmh] = useState<number>(0);
-  const [dailyTimePerKmMin, setDailyTimePerKmMin] = useState<number>(0);
-  const [dailyStops, setDailyStops] = useState<number>(0);
+  
+  // Enhanced tracking state
+  const [selectedEmployeePath, setSelectedEmployeePath] = useState<Array<{ lat: number; lng: number; timestamp: string }>>([]);
+  const [trackingMetrics, setTrackingMetrics] = useState({
+    totalDistance: 0,
+    dailyDistance: 0,
+    averageSpeed: 0,
+    activeTime: 0,
+    idleTime: 0,
+  });
+  
+  // View controls - STABLE (no auto-refresh) - Ultra-high zoom for road-only view
+  const [viewMode, setViewMode] = useState<'overview' | 'detailed' | 'satellite'>('detailed');
+  const [followMode, setFollowMode] = useState<boolean>(false); // Disabled by default for stability
+  const [zoomLevel, setZoomLevel] = useState<number>(16); // Balanced zoom for enhanced features
+  const [lastRefresh, setLastRefresh] = useState<Date>(new Date());
+  const [showHeatmap, setShowHeatmap] = useState<boolean>(false);
+  const [showWeather, setShowWeather] = useState<boolean>(false);
+  const [mapLayers, setMapLayers] = useState<{
+    traffic: boolean;
+    transit: boolean;
+    bicycling: boolean;
+    terrain: boolean;
+  }>({
+    traffic: false,
+    transit: false,
+    bicycling: false,
+    terrain: false
+  });
 
   const onMapLoad = useCallback((map: google.maps.Map) => {
     mapRef.current = map;
-  }, []);
+    
+    // Set initial view to cover Sri Lanka with good detail
+    map.setCenter(sriLankaCenter);
+    map.setZoom(zoomLevel);
+    
+    // Add enhanced custom controls with layer management
+    const controlDiv = document.createElement('div');
+    controlDiv.style.margin = '10px';
+    controlDiv.innerHTML = `
+      <div style="background: white; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); padding: 12px; display: flex; flex-direction: column; gap: 8px; min-width: 200px;">
+        <div style="display:flex; align-items:center; justify-content:space-between; gap:8px; font-size: 14px; font-weight: bold; color: #374151; margin-bottom: 8px;">
+          <span>🗺️ Map Controls</span>
+          <button id="hide-controls" title="Hide controls" style="padding:6px 10px; border:none; background:#e5e7eb; color:#111827; border-radius:6px; cursor:pointer; font-size:12px; font-weight:600;">Hide</button>
+        </div>
+        <button id="sri-lanka-view" style="padding: 10px 16px; border: none; background: linear-gradient(135deg, #3b82f6, #1d4ed8); color: white; border-radius: 8px; cursor: pointer; font-size: 12px; font-weight: 600; transition: all 0.3s ease;">
+          🇱🇰 Sri Lanka View
+        </button>
+        <button id="reset-view" style="padding: 10px 16px; border: none; background: linear-gradient(135deg, #10b981, #059669); color: white; border-radius: 8px; cursor: pointer; font-size: 12px; font-weight: 600; transition: all 0.3s ease;">
+          🔄 Reset View
+        </button>
+        <div style="border-top: 1px solid #e5e7eb; margin: 8px 0; padding-top: 8px;">
+          <div style="font-size: 12px; font-weight: 600; color: #6b7280; margin-bottom: 6px;">Map Layers</div>
+          <button id="toggle-traffic" style="padding: 8px 12px; border: none; background: linear-gradient(135deg, #f59e0b, #d97706); color: white; border-radius: 6px; cursor: pointer; font-size: 11px; font-weight: 500; transition: all 0.3s ease; width: 100%; margin-bottom: 4px;">
+            🚦 Traffic Layer
+          </button>
+          <button id="toggle-transit" style="padding: 8px 12px; border: none; background: linear-gradient(135deg, #8b5cf6, #7c3aed); color: white; border-radius: 6px; cursor: pointer; font-size: 11px; font-weight: 500; transition: all 0.3s ease; width: 100%; margin-bottom: 4px;">
+            🚌 Transit Lines
+          </button>
+          <button id="toggle-bicycling" style="padding: 8px 12px; border: none; background: linear-gradient(135deg, #06b6d4, #0891b2); color: white; border-radius: 6px; cursor: pointer; font-size: 11px; font-weight: 500; transition: all 0.3s ease; width: 100%; margin-bottom: 4px;">
+            🚴 Bicycle Paths
+          </button>
+          <button id="toggle-terrain" style="padding: 8px 12px; border: none; background: linear-gradient(135deg, #84cc16, #65a30d); color: white; border-radius: 6px; cursor: pointer; font-size: 11px; font-weight: 500; transition: all 0.3s ease; width: 100%;">
+            🏔️ Terrain
+        </button>
+        </div>
+        <div style="border-top: 1px solid #e5e7eb; margin: 8px 0; padding-top: 8px;">
+          <div style="font-size: 12px; font-weight: 600; color: #6b7280; margin-bottom: 6px;">Overlays</div>
+          <button id="toggle-heatmap" style="padding: 8px 12px; border: none; background: linear-gradient(135deg, #ef4444, #dc2626); color: white; border-radius: 6px; cursor: pointer; font-size: 11px; font-weight: 500; transition: all 0.3s ease; width: 100%; margin-bottom: 4px;">
+            🔥 Heat Map
+          </button>
+          <button id="toggle-weather" style="padding: 8px 12px; border: none; background: linear-gradient(135deg, #0ea5e9, #0284c7); color: white; border-radius: 6px; cursor: pointer; font-size: 11px; font-weight: 500; transition: all 0.3s ease; width: 100%;">
+            🌤️ Weather
+          </button>
+        </div>
+      </div>
+    `;
+    
+    // Add hover effects
+    const buttons = controlDiv.querySelectorAll('button');
+    buttons.forEach(button => {
+      button.addEventListener('mouseenter', () => {
+        button.style.transform = 'translateY(-2px)';
+        button.style.boxShadow = '0 6px 16px rgba(0,0,0,0.2)';
+      });
+      button.addEventListener('mouseleave', () => {
+        button.style.transform = 'translateY(0)';
+        button.style.boxShadow = 'none';
+      });
+    });
+    
+    const sriLankaButton = controlDiv.querySelector('#sri-lanka-view') as HTMLElement;
+    sriLankaButton.onclick = () => {
+      map.setCenter(sriLankaCenter);
+      map.setZoom(8);
+    };
+    
+    const resetButton = controlDiv.querySelector('#reset-view') as HTMLElement;
+    resetButton.onclick = () => {
+      map.setCenter(sriLankaCenter);
+      map.setZoom(zoomLevel);
+    };
+    
+    // Layer management
+    let trafficLayer: google.maps.TrafficLayer | null = null;
+    let transitLayer: google.maps.TransitLayer | null = null;
+    let bicyclingLayer: google.maps.BicyclingLayer | null = null;
+    let heatmapLayer: google.maps.visualization.HeatmapLayer | null = null;
+    
+    const trafficButton = controlDiv.querySelector('#toggle-traffic') as HTMLElement;
+    trafficButton.onclick = () => {
+      if (!mapLayers.traffic) {
+        trafficLayer = new google.maps.TrafficLayer();
+        trafficLayer.setMap(map);
+        setMapLayers(prev => ({ ...prev, traffic: true }));
+        trafficButton.innerHTML = '🚦 Hide Traffic';
+        trafficButton.style.background = 'linear-gradient(135deg, #ef4444, #dc2626)';
+      } else {
+        if (trafficLayer) {
+          trafficLayer.setMap(null);
+        }
+        setMapLayers(prev => ({ ...prev, traffic: false }));
+        trafficButton.innerHTML = '🚦 Traffic Layer';
+        trafficButton.style.background = 'linear-gradient(135deg, #f59e0b, #d97706)';
+      }
+    };
+    
+    const transitButton = controlDiv.querySelector('#toggle-transit') as HTMLElement;
+    transitButton.onclick = () => {
+      if (!mapLayers.transit) {
+        transitLayer = new google.maps.TransitLayer();
+        transitLayer.setMap(map);
+        setMapLayers(prev => ({ ...prev, transit: true }));
+        transitButton.innerHTML = '🚌 Hide Transit';
+        transitButton.style.background = 'linear-gradient(135deg, #ef4444, #dc2626)';
+      } else {
+        if (transitLayer) {
+          transitLayer.setMap(null);
+        }
+        setMapLayers(prev => ({ ...prev, transit: false }));
+        transitButton.innerHTML = '🚌 Transit Lines';
+        transitButton.style.background = 'linear-gradient(135deg, #8b5cf6, #7c3aed)';
+      }
+    };
+    
+    const bicyclingButton = controlDiv.querySelector('#toggle-bicycling') as HTMLElement;
+    bicyclingButton.onclick = () => {
+      if (!mapLayers.bicycling) {
+        bicyclingLayer = new google.maps.BicyclingLayer();
+        bicyclingLayer.setMap(map);
+        setMapLayers(prev => ({ ...prev, bicycling: true }));
+        bicyclingButton.innerHTML = '🚴 Hide Bicycle';
+        bicyclingButton.style.background = 'linear-gradient(135deg, #ef4444, #dc2626)';
+      } else {
+        if (bicyclingLayer) {
+          bicyclingLayer.setMap(null);
+        }
+        setMapLayers(prev => ({ ...prev, bicycling: false }));
+        bicyclingButton.innerHTML = '🚴 Bicycle Paths';
+        bicyclingButton.style.background = 'linear-gradient(135deg, #06b6d4, #0891b2)';
+      }
+    };
+    
+    const terrainButton = controlDiv.querySelector('#toggle-terrain') as HTMLElement;
+    terrainButton.onclick = () => {
+      if (!mapLayers.terrain) {
+        map.setMapTypeId('terrain');
+        setMapLayers(prev => ({ ...prev, terrain: true }));
+        terrainButton.innerHTML = '🏔️ Hide Terrain';
+        terrainButton.style.background = 'linear-gradient(135deg, #ef4444, #dc2626)';
+      } else {
+        map.setMapTypeId('roadmap');
+        setMapLayers(prev => ({ ...prev, terrain: false }));
+        terrainButton.innerHTML = '🏔️ Terrain';
+        terrainButton.style.background = 'linear-gradient(135deg, #84cc16, #65a30d)';
+      }
+    };
+    
+    const heatmapButton = controlDiv.querySelector('#toggle-heatmap') as HTMLElement;
+    heatmapButton.onclick = () => {
+      if (!showHeatmap) {
+        // Create heatmap data from employee locations
+        const heatmapData = filteredLocations.map(location => ({
+          location: new google.maps.LatLng(location.latitude, location.longitude),
+          weight: 1
+        }));
+        
+        heatmapLayer = new google.maps.visualization.HeatmapLayer({
+          data: heatmapData,
+          map: map,
+          radius: 50,
+          opacity: 0.6
+        });
+        
+        setShowHeatmap(true);
+        heatmapButton.innerHTML = '🔥 Hide Heat Map';
+        heatmapButton.style.background = 'linear-gradient(135deg, #ef4444, #dc2626)';
+      } else {
+        if (heatmapLayer) {
+          heatmapLayer.setMap(null);
+        }
+        setShowHeatmap(false);
+        heatmapButton.innerHTML = '🔥 Heat Map';
+        heatmapButton.style.background = 'linear-gradient(135deg, #ef4444, #dc2626)';
+      }
+    };
+    
+    const weatherButton = controlDiv.querySelector('#toggle-weather') as HTMLElement;
+    weatherButton.onclick = () => {
+      if (!showWeather) {
+        // Add weather overlay (simulated)
+        setShowWeather(true);
+        weatherButton.innerHTML = '🌤️ Hide Weather';
+        weatherButton.style.background = 'linear-gradient(135deg, #ef4444, #dc2626)';
+        toast.success('Weather overlay enabled');
+      } else {
+        setShowWeather(false);
+        weatherButton.innerHTML = '🌤️ Weather';
+        weatherButton.style.background = 'linear-gradient(135deg, #0ea5e9, #0284c7)';
+        toast.success('Weather overlay disabled');
+      }
+    };
+    
+    map.controls[google.maps.ControlPosition.TOP_RIGHT].push(controlDiv);
+
+    // Hide/Show controls toggle
+    const hideBtn = controlDiv.querySelector('#hide-controls') as HTMLElement;
+    let showBtn: HTMLDivElement | null = null;
+    hideBtn.onclick = () => {
+      (controlDiv.firstElementChild as HTMLElement).style.display = 'none';
+      controlDiv.style.display = 'none';
+      // Create a compact show button
+      showBtn = document.createElement('div');
+      showBtn.style.margin = '10px';
+      showBtn.innerHTML = `
+        <div id="show-controls" style="background: #111827; color: #ffffff; border-radius: 9999px; padding: 8px 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.2); cursor: pointer; font-size:12px; font-weight:600;">
+          Show Controls
+        </div>
+      `;
+      map.controls[google.maps.ControlPosition.TOP_RIGHT].push(showBtn);
+      const showBtnEl = showBtn.querySelector('#show-controls') as HTMLElement;
+      showBtnEl.onclick = () => {
+        if (showBtn) {
+          // Remove the compact button and reveal panel
+          const ctrls = map.controls[google.maps.ControlPosition.TOP_RIGHT];
+          for (let i = ctrls.getLength() - 1; i >= 0; i--) {
+            if (ctrls.getAt(i) === showBtn) {
+              ctrls.removeAt(i);
+              break;
+            }
+          }
+          showBtn = null;
+        }
+        controlDiv.style.display = 'block';
+      };
+    };
+    
+    // Legend removed per user request
+    
+    // Add custom info window styling
+    const infoWindow = new google.maps.InfoWindow();
+    infoWindow.setOptions({
+      pixelOffset: new google.maps.Size(0, -10),
+      disableAutoPan: false
+    });
+    
+  }, [zoomLevel]);
 
   const fetchAddress = useCallback(async (lat: number, lng: number): Promise<string> => {
-    const cacheKey = `${lat},${lng}`;
+    const cacheKey = `${lat.toFixed(4)},${lng.toFixed(4)}`;
     if (addressCache[cacheKey]) return addressCache[cacheKey];
+
     try {
       const geocoder = new google.maps.Geocoder();
-      const result = await geocoder.geocode({ location: { lat, lng } });
+      const result = await geocoder.geocode({ 
+        location: { lat, lng },
+        region: 'LK' // Sri Lanka region code for better results
+      });
+      
       const address = result.results[0]?.formatted_address || 'Address unknown';
       setAddressCache(prev => ({ ...prev, [cacheKey]: address }));
       return address;
@@ -100,12 +787,40 @@ export default function EmployeeTrackingMap() {
     }
   }, [addressCache]);
 
-  const fetchLocations = useCallback(async () => {
+    // STABLE fetch function - NO automatic refresh
+  const fetchEmployeeLocations = useCallback(async () => {
+    if (isLoading) return;
+    
+    setIsLoading(true);
+    setLastRefresh(new Date());
+    
     try {
       const data = await LocationService.getEmployeeLocations();
+      
+      if (!data || data.length === 0) {
+        setLocations([]);
+        setError(null);
+        return;
+      }
+
+      // Enhanced location processing with addresses
       const locationsWithAddresses = await Promise.all(
-        data.map(async (location: EmployeeLocation) => ({
-          ...location,
+        data.map(async (location: any) => ({
+          id: location.id,
+          user_id: location.user_id,
+          latitude: location.latitude,
+          longitude: location.longitude,
+          recorded_at: location.recorded_at || location.timestamp,
+          battery_level: location.battery_level,
+          connection_status: location.connection_status,
+          location_accuracy: location.location_accuracy,
+          task_id: location.task_id,
+          full_name: location.full_name || location.email?.split('@')[0] || `User ${location.user_id.slice(0, 8)}`,
+          avatar_url: location.avatar_url,
+          email: location.email,
+          task_title: location.task_title,
+          task_status: location.task_status,
+          task_due_date: location.task_due_date,
           address: await fetchAddress(location.latitude, location.longitude),
         }))
       );
@@ -113,602 +828,602 @@ export default function EmployeeTrackingMap() {
       setLocations(locationsWithAddresses);
       setError(null);
 
-      // Keep selected employee updated with latest position
-      if (selectedLocation) {
-        const latest = locationsWithAddresses
-          .filter(l => l.user_id === selectedLocation.user_id)
-          .sort((a, b) => new Date(b.recorded_at).getTime() - new Date(a.recorded_at).getTime())[0];
-        if (latest) {
-          setSelectedLocation(latest);
-          if (followSelected && mapRef.current) {
-            mapRef.current.panTo({ lat: latest.latitude, lng: latest.longitude });
-          }
-        }
-      }
-
-      // Fit bounds if nothing is selected
-      if (!selectedLocation && locationsWithAddresses.length > 0 && mapRef.current) {
+      // STABLE map positioning - only on manual refresh
+      if (locationsWithAddresses.length > 0 && mapRef.current && viewMode === 'overview') {
         const bounds = new google.maps.LatLngBounds();
         locationsWithAddresses.forEach((location) => {
           bounds.extend({ lat: location.latitude, lng: location.longitude });
         });
         mapRef.current.fitBounds(bounds);
-        if (locationsWithAddresses.length === 1) {
-          mapRef.current.setZoom(20);
-        }
+        
+        // Ensure good detail level
+        setTimeout(() => {
+          if (mapRef.current && mapRef.current.getZoom() && mapRef.current.getZoom()! > 18) {
+            mapRef.current.setZoom(18);
+          }
+        }, 100);
       }
+      
+      // Removed toast notification to prevent spam
+      // toast.success(`Refreshed ${locationsWithAddresses.length} employee locations`);
     } catch (error) {
-      console.error('Error fetching locations:', error);
-      setError('Failed to fetch employee locations');
-      toast.error('Failed to update employee locations');
+      console.error('Error fetching employee locations:', error);
+      setError('Unable to load employee locations');
+      toast.error('Failed to refresh employee locations');
+    } finally {
+      setIsLoading(false);
     }
-  }, [fetchAddress, selectedLocation, followSelected]);
-
-  const computeBearing = (lat1: number, lon1: number, lat2: number, lon2: number): number => {
-    const toRad = (deg: number) => (deg * Math.PI) / 180;
-    const toDeg = (rad: number) => (rad * 180) / Math.PI;
-    const φ1 = toRad(lat1);
-    const φ2 = toRad(lat2);
-    const Δλ = toRad(lon2 - lon1);
-    const y = Math.sin(Δλ) * Math.cos(φ2);
-    const x = Math.cos(φ1) * Math.sin(φ2) - Math.sin(φ1) * Math.cos(φ2) * Math.cos(Δλ);
-    const θ = Math.atan2(y, x);
-    return (toDeg(θ) + 360) % 360;
-  };
+  }, [fetchAddress, viewMode, isLoading]);
 
   const fetchMovementHistory = useCallback(async (userId: string) => {
     try {
-      const since = new Date(Date.now() - lookbackHours * 60 * 60 * 1000);
+      const since = new Date(Date.now() - 8 * 60 * 60 * 1000); // Last 8 hours
       const history = await GeofencingService.getMovementHistory(userId, since);
+      
       if (!history || history.length === 0) {
-        setMovementPath([]);
-        setTurnPoints([]);
-        setTotalDistanceKm(0);
-        setDailyDistanceKm(0);
-        setSpeedKmh(0);
-        setHeadingDeg(0);
-        setDailyMovingMin(0);
-        setDailyIdleMin(0);
-        setDailyAvgSpeedKmh(0);
-        setDailyTimePerKmMin(0);
-        setDailyStops(0);
+        setSelectedEmployeePath([]);
+        setTrackingMetrics({
+          totalDistance: 0,
+          dailyDistance: 0,
+          averageSpeed: 0,
+          activeTime: 0,
+          idleTime: 0,
+        });
         return;
       }
 
       const coords = history
         .map(h => ({ lat: h.latitude, lng: h.longitude, timestamp: h.timestamp }))
-        .filter(p => typeof p.lat === 'number' && typeof p.lng === 'number');
+        .filter(p => typeof p.lat === 'number' && typeof p.lng === 'number')
+        .sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
 
-      // Total distance (lookback)
-      let totalMeters = 0;
-      for (let i = 1; i < coords.length; i += 1) {
-        totalMeters += GeofencingService.calculateDistance(
-          coords[i - 1].lat,
-          coords[i - 1].lng,
-          coords[i].lat,
-          coords[i].lng
-        );
-      }
+      // Calculate comprehensive metrics
+      let totalDistance = 0;
+      let activeTimeMs = 0;
+      let idleTimeMs = 0;
+      const speeds: number[] = [];
 
-      // Daily metrics
-      const midnight = new Date();
-      midnight.setHours(0, 0, 0, 0);
-      const todayHistory = await GeofencingService.getMovementHistory(userId, midnight);
-      let dailyMeters = 0;
-      let movingSec = 0;
-      let idleSec = 0;
-      let stops = 0;
-      let idleStreakSec = 0;
-      const MOVE_THRESHOLD_M = 15;
-      const STOP_THRESHOLD_SEC = 5 * 60;
-      for (let i = 1; i < (todayHistory?.length || 0); i += 1) {
-        const prev = todayHistory![i - 1];
-        const curr = todayHistory![i];
-        const segMeters = GeofencingService.calculateDistance(prev.latitude, prev.longitude, curr.latitude, curr.longitude);
-        const segSec = (new Date(curr.timestamp).getTime() - new Date(prev.timestamp).getTime()) / 1000;
-        dailyMeters += segMeters;
-        if (segMeters >= MOVE_THRESHOLD_M) {
-          movingSec += segSec;
-          if (idleStreakSec >= STOP_THRESHOLD_SEC) stops += 1;
-          idleStreakSec = 0;
-        } else {
-          idleSec += segSec;
-          idleStreakSec += segSec;
-        }
-      }
-      if (idleStreakSec >= STOP_THRESHOLD_SEC) stops += 1;
-
-      const dailyKm = dailyMeters / 1000;
-      const avgSpeed = movingSec > 0 ? (dailyKm) / (movingSec / 3600) : 0;
-      const timePerKmMin = dailyKm > 0 ? (movingSec / 60) / dailyKm : 0;
-
-      setDailyDistanceKm(Math.round(dailyKm * 100) / 100);
-      setDailyMovingMin(Math.round(movingSec / 60));
-      setDailyIdleMin(Math.round(idleSec / 60));
-      setDailyStops(stops);
-      setDailyAvgSpeedKmh(Math.round(avgSpeed * 10) / 10);
-      setDailyTimePerKmMin(Math.round(timePerKmMin * 10) / 10);
-
-      // Speed/heading (lookback)
-      if (coords.length >= 2) {
-        const a = coords[coords.length - 2];
-        const b = coords[coords.length - 1];
-        const meters = GeofencingService.calculateDistance(a.lat, a.lng, b.lat, b.lng);
-        const seconds = (new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()) / 1000;
-        const kmh = seconds > 0 ? (meters / 1000) / (seconds / 3600) : 0;
-        setSpeedKmh(Math.max(0, Math.round(kmh * 10) / 10));
-        setHeadingDeg(Math.round(computeBearing(a.lat, a.lng, b.lat, b.lng)));
-      } else {
-        setSpeedKmh(0);
-        setHeadingDeg(0);
-      }
-
-      // Turns
-      const TURN_THRESHOLD_DEGREES = 35;
-      const turns: Array<{ lat: number; lng: number; angle: number; timestamp: string }> = [];
-      for (let i = 2; i < coords.length; i += 1) {
-        const a = coords[i - 2];
-        const b = coords[i - 1];
-        const c = coords[i];
-        const bearingAB = computeBearing(a.lat, a.lng, b.lat, b.lng);
-        const bearingBC = computeBearing(b.lat, b.lng, c.lat, c.lng);
-        let delta = Math.abs(bearingBC - bearingAB);
-        if (delta > 180) delta = 360 - delta;
-        if (delta >= TURN_THRESHOLD_DEGREES) {
-          turns.push({ lat: b.lat, lng: b.lng, angle: Math.round(delta), timestamp: b.timestamp });
-        }
-      }
-
-      setMovementPath(coords);
-      setTurnPoints(turns);
-      setTotalDistanceKm(Math.round((totalMeters / 1000) * 100) / 100);
-
-      const last = coords[coords.length - 1];
-      if (followSelected && mapRef.current) {
-        mapRef.current.panTo({ lat: last.lat, lng: last.lng });
-        mapRef.current.setZoom(19);
-      }
-    } catch (e) {
-      console.error('Failed to fetch movement history:', e);
-    }
-  }, [followSelected, lookbackHours]);
-
-  // Realtime updates for selected user
-  useEffect(() => {
-    if (!selectedLocation?.user_id) return;
-    const channel = supabase
-      .channel(`movement_${selectedLocation.user_id}`)
-      .on(
-        'postgres_changes',
-        { event: 'INSERT', schema: 'public', table: 'employee_movement_history', filter: `user_id=eq.${selectedLocation.user_id}` },
-        (payload) => {
-          const row: any = payload.new;
-          const point = { lat: row.latitude, lng: row.longitude, timestamp: row.timestamp };
-          setMovementPath(prev => {
-            const updated = [...prev, point];
-            if (updated.length >= 2) {
-              const a = updated[updated.length - 2];
-              const b = updated[updated.length - 1];
-              const incM = GeofencingService.calculateDistance(a.lat, a.lng, b.lat, b.lng);
-              setTotalDistanceKm(prevKm => Math.round((prevKm + incM / 1000) * 100) / 100);
-              const seconds = (new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()) / 1000;
-              const kmh = seconds > 0 ? (incM / 1000) / (seconds / 3600) : 0;
-              setSpeedKmh(Math.max(0, Math.round(kmh * 10) / 10));
-              setHeadingDeg(Math.round(computeBearing(a.lat, a.lng, b.lat, b.lng)));
-            }
-            return updated;
-          });
-          setSelectedLocation(prev => (prev ? { ...prev, latitude: point.lat, longitude: point.lng, recorded_at: point.timestamp } : prev));
-          if (followSelected && mapRef.current) {
-            mapRef.current.panTo({ lat: point.lat, lng: point.lng });
+      for (let i = 1; i < coords.length; i++) {
+        const prev = coords[i - 1];
+        const curr = coords[i];
+        const distance = GeofencingService.calculateDistance(prev.lat, prev.lng, curr.lat, curr.lng);
+        const timeMs = new Date(curr.timestamp).getTime() - new Date(prev.timestamp).getTime();
+        
+        totalDistance += distance;
+        
+        if (distance > 10) { // Moving threshold: 10 meters
+          activeTimeMs += timeMs;
+          if (timeMs > 0) {
+            const speedKmh = (distance / 1000) / (timeMs / 3600000);
+            if (speedKmh < 100) speeds.push(speedKmh); // Filter unrealistic speeds
           }
+        } else {
+          idleTimeMs += timeMs;
         }
-      )
-      .subscribe();
-    return () => {
-      channel.unsubscribe();
-    };
-  }, [selectedLocation?.user_id, followSelected]);
+      }
 
-  // Periodic refresh for list & movement
+      const avgSpeed = speeds.length > 0 ? speeds.reduce((a, b) => a + b, 0) / speeds.length : 0;
+
+      setSelectedEmployeePath(coords);
+      setTrackingMetrics({
+        totalDistance: Math.round(totalDistance / 1000 * 100) / 100, // km
+        dailyDistance: Math.round(totalDistance / 1000 * 100) / 100, // km (using same for now)
+        averageSpeed: Math.round(avgSpeed * 10) / 10,
+        activeTime: Math.round(activeTimeMs / 60000), // minutes
+        idleTime: Math.round(idleTimeMs / 60000), // minutes
+      });
+
+    } catch (error) {
+      console.error('Error fetching movement history:', error);
+    }
+  }, []);
+
+  // STABLE employee selection - no auto-follow by default
+  const handleEmployeeSelect = useCallback((employee: EmployeeLocation) => {
+    setSelectedEmployee(employee);
+    fetchMovementHistory(employee.user_id);
+    
+    // Only pan if user explicitly enabled follow mode
+    if (mapRef.current && followMode) {
+      mapRef.current.panTo({ lat: employee.latitude, lng: employee.longitude });
+      mapRef.current.setZoom(20);
+    }
+  }, [fetchMovementHistory, followMode]);
+
+  // INITIAL LOAD ONLY - No automatic refresh intervals
   useEffect(() => {
-    fetchLocations();
-    const interval = setInterval(fetchLocations, 30000);
-    return () => clearInterval(interval);
-  }, [fetchLocations]);
+    fetchEmployeeLocations();
+  }, []); // Empty dependency array to run only once on mount
 
   if (!isLoaded) {
     return (
-      <div className="flex justify-center items-center h-64">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-500"></div>
+      <div className="flex flex-col justify-center items-center h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
+        <div className="animate-spin rounded-full h-16 w-16 border-b-4 border-indigo-600 mb-4"></div>
+        <p className="text-lg font-medium text-gray-700">Loading Sri Lanka Map...</p>
+        <p className="text-sm text-gray-500">Preparing comprehensive employee tracking</p>
       </div>
     );
   }
 
   if (error) {
     return (
-      <div className="bg-red-50 p-4 rounded-md">
-        <div className="flex">
-          <ExclamationIcon className="h-5 w-5 text-red-400" aria-hidden="true" />
-          <div className="ml-3">
-            <h3 className="text-sm font-medium text-red-800">Error loading employee locations</h3>
-            <p className="text-sm text-red-700 mt-2">{error}</p>
+      <div className="min-h-screen bg-red-50 flex items-center justify-center p-4">
+        <div className="bg-white rounded-lg shadow-lg p-8 max-w-md w-full">
+          <div className="flex items-center mb-4">
+            <ExclamationIcon className="h-8 w-8 text-red-500 mr-3" />
+            <h3 className="text-lg font-semibold text-red-800">Tracking Error</h3>
           </div>
+          <p className="text-red-600 mb-4">{error}</p>
+          <button
+            onClick={() => {
+              setError(null);
+              fetchEmployeeLocations();
+            }}
+            className="w-full bg-red-600 text-white py-2 px-4 rounded-md hover:bg-red-700 transition-colors"
+          >
+            Retry Loading
+          </button>
         </div>
       </div>
     );
   }
 
-  const filteredLocations = locations.filter(
-    location => showInactive || location.connection_status === 'online'
-  );
+  const activeEmployees = locations.filter(loc => loc.connection_status === 'online');
+  const filteredLocations = showInactive ? locations : activeEmployees;
 
-  const zoomToSelected = () => {
-    if (selectedLocation && mapRef.current) {
-      mapRef.current.panTo({ lat: selectedLocation.latitude, lng: selectedLocation.longitude });
-      mapRef.current.setZoom(19);
+  const zoomToSriLanka = () => {
+    if (mapRef.current) {
+      mapRef.current.setCenter(sriLankaCenter);
+      mapRef.current.setZoom(8);
     }
   };
 
-  const fitPath = () => {
-    if (movementPath.length > 0 && mapRef.current) {
+  const zoomToEmployee = () => {
+    if (selectedEmployee && mapRef.current) {
+      mapRef.current.panTo({ lat: selectedEmployee.latitude, lng: selectedEmployee.longitude });
+      mapRef.current.setZoom(21); // Maximum zoom for construction site detail
+    }
+  };
+
+  const fitAllEmployees = () => {
+    if (filteredLocations.length > 0 && mapRef.current) {
       const bounds = new google.maps.LatLngBounds();
-      movementPath.forEach(p => bounds.extend({ lat: p.lat, lng: p.lng }));
+      filteredLocations.forEach(location => {
+        bounds.extend({ lat: location.latitude, lng: location.longitude });
+      });
       mapRef.current.fitBounds(bounds);
     }
   };
 
-  const handleSelectUser = (userId: string) => {
-    const latest = locations
-      .filter(l => l.user_id === userId)
-      .sort((a, b) => new Date(b.recorded_at).getTime() - new Date(a.recorded_at).getTime())[0];
-    if (latest) {
-      setSelectedLocation(latest);
-      fetchMovementHistory(latest.user_id);
-      if (mapRef.current) {
-        mapRef.current.panTo({ lat: latest.latitude, lng: latest.longitude });
-        mapRef.current.setZoom(19);
-      }
-    }
-  };
-
-  // Heading arrow SVG icon for latest point
-  const headingIconUrl = (deg: number) =>
-    'data:image/svg+xml;charset=UTF-8,' +
-    encodeURIComponent(`
-      <svg width="32" height="32" viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg">
-        <g transform="rotate(${deg},16,16)">
-          <circle cx="16" cy="16" r="14" fill="rgba(37,99,235,0.15)" stroke="#2563eb" stroke-width="2" />
-          <polygon points="16,6 22,16 16,14 10,16" fill="#2563eb" />
-        </g>
-      </svg>
-    `);
-
-  const lastPoint = movementPath.length > 0 ? movementPath[movementPath.length - 1] : null;
-
-  const exportDailyPdfReport = async () => {
-    if (!selectedLocation) {
-      toast.error('Select an employee first');
-      return;
-    }
-    try {
-      const { Document, Page, Text, View, StyleSheet, pdf } = await import('@react-pdf/renderer');
-      const styles = StyleSheet.create({
-        page: { padding: 24, fontSize: 11, fontFamily: 'Helvetica' },
-        h1: { fontSize: 16, marginBottom: 12, fontWeight: 700 },
-        section: { marginBottom: 12 },
-        row: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 6 },
-        label: { color: '#6b7280' },
-        value: { fontWeight: 700 },
-        small: { color: '#6b7280', fontSize: 10 },
-      });
-
-      const todayStr = new Date().toLocaleDateString();
-      const doc = (
-        <Document>
-          <Page size="A4" style={styles.page}>
-            <Text style={styles.h1}>Employee Movement Report</Text>
-            <View style={styles.section}>
-              <View style={styles.row}><Text style={styles.label}>Employee</Text><Text style={styles.value}>{selectedLocation.full_name}</Text></View>
-              <View style={styles.row}><Text style={styles.label}>Date</Text><Text style={styles.value}>{todayStr}</Text></View>
-              <View style={styles.row}><Text style={styles.label}>Email</Text><Text style={styles.value}>{selectedLocation.email || '-'}</Text></View>
-            </View>
-            <View style={styles.section}>
-              <Text style={{ marginBottom: 6, fontWeight: 700 }}>Today Summary</Text>
-              <View style={styles.row}><Text style={styles.label}>Total Distance</Text><Text style={styles.value}>{dailyDistanceKm.toFixed(2)} km</Text></View>
-              <View style={styles.row}><Text style={styles.label}>Moving Time</Text><Text style={styles.value}>{dailyMovingMin} min</Text></View>
-              <View style={styles.row}><Text style={styles.label}>Idle Time (waste)</Text><Text style={styles.value}>{dailyIdleMin} min</Text></View>
-              <View style={styles.row}><Text style={styles.label}>Average Speed</Text><Text style={styles.value}>{dailyAvgSpeedKmh.toFixed(1)} km/h</Text></View>
-              <View style={styles.row}><Text style={styles.label}>Time per Km</Text><Text style={styles.value}>{dailyTimePerKmMin.toFixed(1)} min/km</Text></View>
-              <View style={styles.row}><Text style={styles.label}>Stops (&gt; 5 min)</Text><Text style={styles.value}>{dailyStops}</Text></View>
-              <Text style={styles.small}>Idle time approximates non-moving periods (segment movement &lt; 15m). Stop is an idle streak &gt;= 5 minutes.</Text>
-            </View>
-            <View style={styles.section}>
-              <Text style={{ marginBottom: 6, fontWeight: 700 }}>Current Status</Text>
-              <View style={styles.row}><Text style={styles.label}>Last Fix</Text><Text style={styles.value}>{lastPoint ? new Date(lastPoint.timestamp).toLocaleTimeString() : '-'}</Text></View>
-              <View style={styles.row}><Text style={styles.label}>Speed</Text><Text style={styles.value}>{speedKmh.toFixed(1)} km/h</Text></View>
-              <View style={styles.row}><Text style={styles.label}>Heading</Text><Text style={styles.value}>{headingDeg}°</Text></View>
-              <View style={styles.row}><Text style={styles.label}>Accuracy</Text><Text style={styles.value}>{selectedLocation.location_accuracy ? Math.round(selectedLocation.location_accuracy) + ' m' : '-'}</Text></View>
-            </View>
-            <View style={styles.section}>
-              <Text style={styles.small}>Generated by Task Management System</Text>
-            </View>
-          </Page>
-        </Document>
-      );
-
-      const blob = await pdf(doc).toBlob();
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `movement_report_${selectedLocation.full_name.replace(/\s+/g, '_')}_${todayStr}.pdf`;
-      a.click();
-      URL.revokeObjectURL(url);
-      toast.success('PDF report exported');
-    } catch (err) {
-      console.error('PDF export failed:', err);
-      toast.error('Failed to export PDF report');
-    }
-  };
-
   return (
-    <div className="space-y-4 p-2 md:p-4">
-      {/* Back Button and Controls */}
-      <div className="flex flex-col space-y-3">
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-blue-50">
+      {/* Enhanced Header */}
+      <div className="bg-white shadow-lg border-b border-gray-200">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+          <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+            <div className="flex items-center space-x-4">
         <button
           onClick={() => navigate('/admin/dashboard')}
-          className="flex items-center text-gray-600 hover:text-gray-800 transition-colors w-fit"
+                className="flex items-center text-gray-600 hover:text-gray-800 transition-colors"
         >
-          <ArrowLeftIcon className="h-5 w-5 mr-1" />
-          <span className="text-sm font-medium">Back to Dashboard</span>
+                <ArrowLeftIcon className="h-5 w-5 mr-2" />
+                <span className="font-medium">Dashboard</span>
         </button>
 
-        {/* Controls and Legend */}
-        <div className="bg-white p-3 md:p-4 rounded-lg shadow">
-          <div className="flex flex-col md:flex-row md:justify-between md:items-center space-y-3 md:space-y-0">
-            <div className="flex flex-col md:flex-row md:items-center space-y-2 md:space-y-0 md:space-x-4">
-              <h2 className="text-lg font-semibold flex items-center">
-                <UserGroupIcon className="h-5 w-5 mr-2" />
-                Employee Tracking
-              </h2>
-              <div className="flex items-center space-x-4 text-sm">
-                <span className="inline-flex items-center">
-                  <div className="w-3 h-3 rounded-full bg-green-500 mr-1"></div>
-                  Active
-                </span>
-                <span className="inline-flex items-center">
-                  <div className="w-3 h-3 rounded-full bg-red-500 mr-1"></div>
-                  Inactive
-                </span>
+              <div className="h-6 w-px bg-gray-300"></div>
+              
+              <div>
+                <h1 className="text-2xl font-bold text-gray-900 flex items-center">
+                  <MapIcon className="h-7 w-7 mr-3 text-indigo-600" />
+                  Sri Lanka Employee Tracking
+                </h1>
+                <p className="text-sm text-gray-600 mt-1">
+                  Comprehensive real-time location monitoring for construction teams
+                </p>
               </div>
             </div>
-            <div className="flex flex-wrap items-center gap-3">
-              <label className="inline-flex items-center cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={showInactive}
-                  onChange={(e) => setShowInactive(e.target.checked)}
-                  className="form-checkbox h-4 w-4 text-indigo-600"
-                />
-                <span className="ml-2 text-sm text-gray-700">Show Inactive</span>
-              </label>
 
-              <label className="inline-flex items-center cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={followSelected}
-                  onChange={(e) => setFollowSelected(e.target.checked)}
-                  className="form-checkbox h-4 w-4 text-indigo-600"
-                />
-                <span className="ml-2 text-sm text-gray-700">Follow Selected</span>
-              </label>
+            {/* Quick Stats */}
+            <div className="flex items-center space-x-6 text-sm">
+              <div className="text-center">
+                <div className="text-2xl font-bold text-green-600">{activeEmployees.length}</div>
+                <div className="text-gray-500">Active</div>
+              </div>
+              <div className="text-center">
+                <div className="text-2xl font-bold text-gray-600">{locations.length - activeEmployees.length}</div>
+                <div className="text-gray-500">Offline</div>
+              </div>
+              <div className="text-center">
+                <div className="text-2xl font-bold text-indigo-600">{locations.length}</div>
+                <div className="text-gray-500">Total</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
 
+      {/* Enhanced Controls Panel */}
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+        <div className="bg-white rounded-xl shadow-lg p-6 mb-6">
+          <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+            
+            {/* Employee Selector */}
+            <div className="lg:col-span-1">
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Select Employee
+              </label>
               <select
-                value={selectedLocation?.user_id || ''}
-                onChange={(e) => handleSelectUser(e.target.value)}
-                className="rounded-md border-gray-300 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
-                title="Select employee"
-                aria-label="Select employee"
+                value={selectedEmployee?.user_id || ''}
+                onChange={(e) => {
+                  const emp = locations.find(l => l.user_id === e.target.value);
+                  if (emp) handleEmployeeSelect(emp);
+                }}
+                className="w-full rounded-lg border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                title="Select employee to track"
+                aria-label="Select employee to track"
               >
-                <option value="">Select employee…</option>
+                <option value="">All Employees</option>
                 {[...new Map(locations.map(l => [l.user_id, l])).values()]
                   .sort((a, b) => a.full_name.localeCompare(b.full_name))
-                  .map(l => (
-                    <option key={l.user_id} value={l.user_id}>
-                      {l.full_name}
+                  .map(emp => (
+                    <option key={emp.user_id} value={emp.user_id}>
+                      {emp.full_name} {emp.connection_status === 'online' ? '🟢' : '🔴'}
                     </option>
                   ))}
               </select>
+            </div>
 
-              <select
-                value={lookbackHours}
-                onChange={(e) => setLookbackHours(Number(e.target.value))}
-                className="rounded-md border-gray-300 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
-                title="Path lookback window"
-                aria-label="Path lookback window"
-              >
-                {[1, 2, 6, 12, 24].map(h => (
-                  <option key={h} value={h}>{h}h</option>
+            {/* View Controls */}
+            <div className="lg:col-span-1">
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                View Mode
+              </label>
+              <div className="flex rounded-lg border border-gray-300 overflow-hidden">
+                {[
+                  { key: 'overview', label: 'Overview' },
+                  { key: 'detailed', label: 'Detailed' },
+                  { key: 'satellite', label: 'Satellite' }
+                ].map(mode => (
+                  <button
+                    key={mode.key}
+                    onClick={() => setViewMode(mode.key as any)}
+                    className={`flex-1 py-2 px-3 text-xs font-medium ${
+                      viewMode === mode.key
+                        ? 'bg-indigo-600 text-white'
+                        : 'bg-white text-gray-700 hover:bg-gray-50'
+                    }`}
+                  >
+                    {mode.label}
+                  </button>
                 ))}
-              </select>
+              </div>
+            </div>
 
+            {/* Zoom Controls */}
+            <div className="lg:col-span-1">
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Zoom Level: {zoomLevel}
+              </label>
+              <input
+                type="range"
+                min="8"
+                max="22"
+                value={zoomLevel}
+                onChange={(e) => {
+                  const zoom = parseInt(e.target.value);
+                  setZoomLevel(zoom);
+                  if (mapRef.current) {
+                    mapRef.current.setZoom(zoom);
+                  }
+                }}
+                className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer"
+                title="Adjust map zoom level"
+                aria-label="Adjust map zoom level"
+              />
+              <div className="flex justify-between text-xs text-gray-500 mt-1">
+                <span>Country</span>
+                <span>Street</span>
+              </div>
+            </div>
+
+            {/* Action Buttons */}
+            <div className="lg:col-span-1 flex flex-wrap gap-2">
               <button
-                onClick={zoomToSelected}
-                className="px-3 py-1.5 text-sm rounded-md bg-indigo-600 text-white hover:bg-indigo-700"
-                disabled={!selectedLocation}
-                aria-label="Zoom to employee"
-                title="Zoom to employee"
+                onClick={zoomToSriLanka}
+                className="flex-1 bg-blue-600 text-white py-2 px-3 rounded-md hover:bg-blue-700 transition-colors text-sm font-medium"
               >
-                Zoom to Employee
+                🇱🇰 Sri Lanka
               </button>
-
               <button
-                onClick={fitPath}
-                className="px-3 py-1.5 text-sm rounded-md bg-blue-600 text-white hover:bg-blue-700"
-                disabled={movementPath.length === 0}
-                aria-label="Fit path to view"
-                title="Fit path to view"
+                onClick={fitAllEmployees}
+                className="flex-1 bg-green-600 text-white py-2 px-3 rounded-md hover:bg-green-700 transition-colors text-sm font-medium"
               >
-                Fit Path
+                Fit All
               </button>
-
               <button
-                onClick={exportDailyPdfReport}
-                className="px-3 py-1.5 text-sm rounded-md bg-gray-700 text-white hover:bg-gray-800"
-                disabled={!selectedLocation}
-                aria-label="Export daily PDF report"
-                title="Export daily PDF report"
+                onClick={zoomToEmployee}
+                disabled={!selectedEmployee}
+                className="flex-1 bg-indigo-600 text-white py-2 px-3 rounded-md hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-sm font-medium"
               >
-                Export PDF
+                Focus
               </button>
             </div>
           </div>
 
-          {selectedLocation && (
-            <div className="mt-3 grid grid-cols-1 md:grid-cols-5 gap-3 text-sm">
-              <div className="bg-gray-50 rounded-md p-2">
-                <div className="text-gray-500">Selected</div>
-                <div className="font-medium text-gray-900 truncate">{selectedLocation.full_name}</div>
-              </div>
-              <div className="bg-gray-50 rounded-md p-2">
-                <div className="text-gray-500">Distance (today)</div>
-                <div className="font-medium text-gray-900">{dailyDistanceKm.toFixed(2)} km</div>
-              </div>
-              <div className="bg-gray-50 rounded-md p-2">
-                <div className="text-gray-500">Moving</div>
-                <div className="font-medium text-gray-900">{dailyMovingMin} min</div>
-              </div>
-              <div className="bg-gray-50 rounded-md p-2">
-                <div className="text-gray-500">Idle (waste)</div>
-                <div className="font-medium text-gray-900">{dailyIdleMin} min</div>
-              </div>
-              <div className="bg-gray-50 rounded-md p-2">
-                <div className="text-gray-500">Avg speed</div>
-                <div className="font-medium text-gray-900">{dailyAvgSpeedKmh.toFixed(1)} km/h</div>
-              </div>
+          {/* Advanced Controls Row */}
+          <div className="mt-4 flex flex-wrap items-center gap-4 pt-4 border-t border-gray-200">
+            <label className="flex items-center cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={showInactive}
+                  onChange={(e) => setShowInactive(e.target.checked)}
+                className="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+              />
+              <span className="ml-2 text-sm text-gray-700">Show Offline Employees</span>
+            </label>
+
+                        <label className="flex items-center cursor-pointer">
+              <input
+                type="checkbox"
+                checked={followMode}
+                onChange={(e) => setFollowMode(e.target.checked)}
+                className="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+              />
+              <span className="ml-2 text-sm text-gray-700">Manual Follow Mode</span>
+            </label>
+
+            <div className="flex items-center space-x-2 text-sm text-gray-600">
+              <span>Last Refresh:</span>
+              <span className="font-medium">{lastRefresh.toLocaleTimeString()}</span>
             </div>
-          )}
+
+            <button
+              onClick={fetchEmployeeLocations}
+              disabled={isLoading}
+              className="flex items-center space-x-2 bg-indigo-600 text-white py-2 px-4 rounded-lg hover:bg-indigo-700 disabled:opacity-50 transition-colors font-medium"
+            >
+              <RefreshIcon className={`h-5 w-5 ${isLoading ? 'animate-spin' : ''}`} />
+              <span>{isLoading ? 'Refreshing...' : 'Manual Refresh'}</span>
+            </button>
+          </div>
+        </div>
+
+        {/* Selected Employee Metrics */}
+        {selectedEmployee && (
+          <div className="bg-white rounded-xl shadow-lg p-6 mb-6">
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center space-x-3">
+                <img
+                  src={selectedEmployee.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(selectedEmployee.full_name)}&background=3b82f6&color=fff`}
+                  alt={selectedEmployee.full_name}
+                  className="w-12 h-12 rounded-full border-2 border-indigo-200"
+                />
+                <div>
+                  <h3 className="text-lg font-semibold text-gray-900">{selectedEmployee.full_name}</h3>
+                  <p className="text-sm text-gray-500">{selectedEmployee.email}</p>
         </div>
       </div>
 
-      {/* Map */}
-      <div className="bg-white rounded-lg shadow overflow-hidden">
+              <div className="flex items-center space-x-2">
+                <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${
+                  selectedEmployee.connection_status === 'online' 
+                    ? 'bg-green-100 text-green-800' 
+                    : 'bg-red-100 text-red-800'
+                }`}>
+                  <div className={`w-2 h-2 rounded-full mr-2 ${
+                    selectedEmployee.connection_status === 'online' ? 'bg-green-500' : 'bg-red-500'
+                  }`}></div>
+                  {selectedEmployee.connection_status === 'online' ? 'Online' : 'Offline'}
+                </span>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+              <div className="bg-blue-50 rounded-lg p-3 text-center">
+                <div className="text-2xl font-bold text-blue-600">{trackingMetrics.totalDistance}</div>
+                <div className="text-xs text-blue-800">Distance (km)</div>
+              </div>
+              <div className="bg-green-50 rounded-lg p-3 text-center">
+                <div className="text-2xl font-bold text-green-600">{trackingMetrics.averageSpeed}</div>
+                <div className="text-xs text-green-800">Avg Speed (km/h)</div>
+              </div>
+              <div className="bg-indigo-50 rounded-lg p-3 text-center">
+                <div className="text-2xl font-bold text-indigo-600">{trackingMetrics.activeTime}</div>
+                <div className="text-xs text-indigo-800">Active (min)</div>
+              </div>
+              <div className="bg-orange-50 rounded-lg p-3 text-center">
+                <div className="text-2xl font-bold text-orange-600">{trackingMetrics.idleTime}</div>
+                <div className="text-xs text-orange-800">Idle (min)</div>
+              </div>
+              <div className="bg-purple-50 rounded-lg p-3 text-center">
+                <div className="text-2xl font-bold text-purple-600">{selectedEmployeePath.length}</div>
+                <div className="text-xs text-purple-800">GPS Points</div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Main Map Container */}
+        <div className="bg-white rounded-xl shadow-xl overflow-hidden">
         <GoogleMap
           mapContainerStyle={mapContainerStyle}
-          zoom={18}
-          center={defaultCenter}
-          options={mapOptions}
+            zoom={zoomLevel}
+            center={selectedEmployee ? { lat: selectedEmployee.latitude, lng: selectedEmployee.longitude } : sriLankaCenter}
+            options={{
+              ...customMapOptions,
+              mapTypeId: viewMode === 'satellite' ? 'satellite' : 'roadmap',
+            }}
           onLoad={onMapLoad}
+            onClick={() => setSelectedEmployee(null)}
         >
+            {/* Enhanced Employee Markers with Premium Styling */}
           {filteredLocations.map((location) => (
             <Marker
               key={location.id}
-              position={{ lat: location.latitude, lng: location.longitude }}
+                position={{ lat: location.latitude, lng: location.longitude }}
               icon={{
-                url: location.connection_status === 'online'
-                  ? 'data:image/svg+xml;charset=UTF-8,' + encodeURIComponent(`
-                      <svg width=\"36\" height=\"36\" viewBox=\"0 0 36 36\" xmlns=\"http://www.w3.org/2000/svg\">\n                        <circle cx=\"18\" cy=\"18\" r=\"16\" fill=\"#22c55e\" stroke=\"white\" stroke-width=\"2\"/>\n                        <circle cx=\"18\" cy=\"18\" r=\"8\" fill=\"white\"/>\n                      </svg>\n                    `)
-                  : 'data:image/svg+xml;charset=UTF-8,' + encodeURIComponent(`
-                      <svg width=\"36\" height=\"36\" viewBox=\"0 0 36 36\" xmlns=\"http://www.w3.org/2000/svg\">\n                        <circle cx=\"18\" cy=\"18\" r=\"16\" fill=\"#ef4444\" stroke=\"white\" stroke-width=\"2\"/>\n                        <circle cx=\"18\" cy=\"18\" r=\"8\" fill=\"white\"/>\n                      </svg>\n                    `),
-                scaledSize: new google.maps.Size(36, 36),
-                anchor: new google.maps.Point(18, 18),
-              }}
-              onClick={() => setSelectedLocation(location)}
+                  url: `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(`
+                    <svg width="64" height="64" viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg">
+                      <defs>
+                        <filter id="glow" x="-50%" y="-50%" width="200%" height="200%">
+                          <feGaussianBlur stdDeviation="6" result="coloredBlur"/>
+                          <feMerge> 
+                            <feMergeNode in="coloredBlur"/>
+                            <feMergeNode in="SourceGraphic"/>
+                          </feMerge>
+                        </filter>
+                        <filter id="shadow" x="-50%" y="-50%" width="200%" height="200%">
+                          <feDropShadow dx="3" dy="6" stdDeviation="4" flood-color="rgba(0,0,0,0.4)"/>
+                        </filter>
+                        <linearGradient id="markerGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                          <stop offset="0%" style="stop-color:#3b82f6;stop-opacity:1" />
+                          <stop offset="50%" style="stop-color:#1d4ed8;stop-opacity:1" />
+                          <stop offset="100%" style="stop-color:#1e40af;stop-opacity:1" />
+                        </linearGradient>
+                        <linearGradient id="onlineGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                          <stop offset="0%" style="stop-color:#10b981;stop-opacity:1" />
+                          <stop offset="100%" style="stop-color:#059669;stop-opacity:1" />
+                        </linearGradient>
+                        <linearGradient id="offlineGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                          <stop offset="0%" style="stop-color:#6b7280;stop-opacity:1" />
+                          <stop offset="100%" style="stop-color:#4b5563;stop-opacity:1" />
+                        </linearGradient>
+                      </defs>
+                      <!-- Outer glow ring with enhanced visibility -->
+                      <circle cx="32" cy="32" r="30" fill="#3b82f6" opacity="0.15" filter="url(#glow)"/>
+                      <!-- Main marker with premium gradient -->
+                      <circle cx="32" cy="32" r="24" fill="url(#markerGradient)" stroke="white" stroke-width="5" filter="url(#shadow)"/>
+                      <!-- Inner white circle with subtle shadow -->
+                      <circle cx="32" cy="32" r="16" fill="white" opacity="0.95" filter="url(#shadow)"/>
+                      <!-- Employee initial with enhanced typography -->
+                      <text x="32" y="38" text-anchor="middle" fill="#1e40af" font-size="16" font-weight="bold" font-family="Arial, sans-serif">
+                        ${location.full_name.charAt(0).toUpperCase()}
+                      </text>
+                      <!-- Enhanced status indicator with gradient -->
+                      <circle cx="48" cy="16" r="10" fill="url(${location.connection_status === 'online' ? '#onlineGradient' : '#offlineGradient'})" stroke="white" stroke-width="4" filter="url(#shadow)"/>
+                      <text x="48" y="22" text-anchor="middle" fill="white" font-size="12" font-weight="bold">
+                        ${location.connection_status === 'online' ? '●' : '○'}
+                      </text>
+                      <!-- Enhanced battery indicator -->
+                      ${location.battery_level ? `
+                        <rect x="6" y="6" width="12" height="6" fill="${location.battery_level > 20 ? '#10b981' : '#ef4444'}" stroke="white" stroke-width="2" rx="2" filter="url(#shadow)"/>
+                        <text x="12" y="11" text-anchor="middle" fill="white" font-size="8" font-weight="bold">${location.battery_level}%</text>
+                      ` : ''}
+                      <!-- Enhanced task indicator -->
+                      ${location.task_title ? `
+                        <circle cx="18" cy="48" r="8" fill="#f59e0b" stroke="white" stroke-width="3" filter="url(#shadow)"/>
+                        <text x="18" y="53" text-anchor="middle" fill="white" font-size="10" font-weight="bold">📋</text>
+                      ` : ''}
+                      <!-- Direction indicator arrow -->
+                      <polygon points="32,8 28,16 36,16" fill="white" stroke="#1e40af" stroke-width="2" filter="url(#shadow)"/>
+                      </svg>
+                  `)}`,
+                  scaledSize: new google.maps.Size(64, 64),
+                  anchor: new google.maps.Point(32, 32),
+                }}
+                onClick={() => handleEmployeeSelect(location)}
+                animation={location.user_id === selectedEmployee?.user_id ? google.maps.Animation.BOUNCE : undefined}
             />
           ))}
 
-          {/* Selected employee path */}
-          {movementPath.length > 1 && (
-            <Polyline
-              path={movementPath.map(p => ({ lat: p.lat, lng: p.lng }))}
-              options={{ strokeColor: '#2563eb', strokeOpacity: 0.9, strokeWeight: 4 }}
-            />
-          )}
+            {/* Selected Employee Path with Enhanced Styling */}
+            {selectedEmployeePath.length > 1 && (
+              <Polyline
+                path={selectedEmployeePath.map(p => ({ lat: p.lat, lng: p.lng }))}
+                options={{
+                  strokeColor: '#f59e0b',
+                  strokeOpacity: 0.9,
+                  strokeWeight: 6,
+                  geodesic: true,
+                  icons: [{
+                    icon: {
+                      path: google.maps.SymbolPath.FORWARD_CLOSED_ARROW,
+                      scale: 3,
+                      strokeColor: '#ffffff',
+                      strokeWeight: 2,
+                      fillColor: '#f59e0b',
+                      fillOpacity: 1
+                    },
+                    offset: '50%',
+                    repeat: '200px'
+                  }]
+                }}
+              />
+            )}
 
-          {/* Heading arrow at last point */}
-          {lastPoint && (
-            <Marker
-              position={{ lat: lastPoint.lat, lng: lastPoint.lng }}
-              icon={{
-                url: headingIconUrl(headingDeg),
-                scaledSize: new google.maps.Size(32, 32),
-                anchor: new google.maps.Point(16, 16),
-              }}
-            />
-          )}
+            {/* Accuracy Circle for Selected Employee with Enhanced Styling */}
+            {selectedEmployee?.location_accuracy && (
+              <Circle
+                center={{ lat: selectedEmployee.latitude, lng: selectedEmployee.longitude }}
+                radius={selectedEmployee.location_accuracy}
+                options={{
+                  strokeColor: '#f59e0b',
+                  strokeOpacity: 0.8,
+                  strokeWeight: 3,
+                  fillColor: '#f59e0b',
+                  fillOpacity: 0.15,
+                }}
+              />
+            )}
 
-          {/* Accuracy circle for selected location */}
-          {selectedLocation?.location_accuracy && (
-            <Circle
-              center={{ lat: selectedLocation.latitude, lng: selectedLocation.longitude }}
-              radius={selectedLocation.location_accuracy}
-              options={{
-                strokeColor: '#3b82f6',
-                strokeOpacity: 0.5,
-                strokeWeight: 1,
-                fillColor: '#3b82f6',
-                fillOpacity: 0.15,
-              }}
-            />
-          )}
-
-          {/* Turn markers */}
-          {turnPoints.map((turn, idx) => (
-            <Marker
-              key={`turn-${idx}`}
-              position={{ lat: turn.lat, lng: turn.lng }}
-              icon={{
-                url: 'data:image/svg+xml;charset=UTF-8,' + encodeURIComponent(`
-                  <svg width=\"20\" height=\"20\" viewBox=\"0 0 20 20\" xmlns=\"http://www.w3.org/2000/svg\">\n                    <circle cx=\"10\" cy=\"10\" r=\"9\" fill=\"#f59e0b\" stroke=\"white\" stroke-width=\"2\"/>\n                    <text x=\"10\" y=\"14\" text-anchor=\"middle\" font-size=\"10\" fill=\"white\" font-family=\"Arial\" font-weight=\"bold\">↪</text>\n                  </svg>\n                `),
-                scaledSize: new google.maps.Size(20, 20),
-                anchor: new google.maps.Point(10, 10),
-              }}
-            />
-          ))}
-
-          {/* InfoWindow */}
-          {selectedLocation && (
+            {/* Enhanced InfoWindow */}
+            {selectedEmployee && (
             <InfoWindow
-              position={{ lat: selectedLocation.latitude, lng: selectedLocation.longitude }}
-              onCloseClick={() => setSelectedLocation(null)}
-            >
-              <div className="p-2 max-w-[280px] md:max-w-xs">
-                <div className="flex items-center mb-2">
-                  <img
-                    src={selectedLocation?.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(selectedLocation?.full_name || 'User')}`}
-                    alt={selectedLocation?.full_name || 'User'}
-                    className="w-8 h-8 md:w-10 md:h-10 rounded-full mr-2"
+                position={{ lat: selectedEmployee.latitude, lng: selectedEmployee.longitude }}
+                onCloseClick={() => setSelectedEmployee(null)}
+              >
+                <div className="p-3 max-w-sm">
+                  <div className="flex items-center mb-3">
+                    <img
+                      src={selectedEmployee.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(selectedEmployee.full_name)}&background=3b82f6&color=fff`}
+                      alt={selectedEmployee.full_name}
+                      className="w-10 h-10 rounded-full mr-3"
                   />
                   <div>
-                    <h3 className="font-semibold text-sm md:text-base">{selectedLocation?.full_name || 'User'}</h3>
-                    <p className="text-xs md:text-sm text-gray-600">{selectedLocation?.email || 'No email'}</p>
+                      <h4 className="font-semibold text-gray-900">{selectedEmployee.full_name}</h4>
+                      <p className="text-sm text-gray-600">{selectedEmployee.email}</p>
+                    </div>
                   </div>
-                </div>
-                <div className="text-xs md:text-sm space-y-1">
-                  <p className="font-medium">Location:</p>
-                  <p className="text-gray-600 break-words">{selectedLocation.address}</p>
-                  <div className="flex justify-between items-center mt-2">
-                    <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
-                      selectedLocation.connection_status === 'online' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
-                    }`}>
-                      {selectedLocation.connection_status === 'online' ? 'Active' : 'Inactive'}
-                    </span>
-                    <span className="text-gray-500 text-xs">
-                      {new Date(selectedLocation.recorded_at).toLocaleTimeString()}
+                  
+                  <div className="space-y-2 text-sm">
+                    <div className="flex justify-between">
+                      <span className="text-gray-600">Status:</span>
+                      <span className={`font-medium ${
+                        selectedEmployee.connection_status === 'online' ? 'text-green-600' : 'text-red-600'
+                      }`}>
+                        {selectedEmployee.connection_status === 'online' ? 'Online' : 'Offline'}
                     </span>
                   </div>
-                  {selectedLocation.task_title && (
-                    <div className="mt-2 p-2 bg-gray-50 rounded">
-                      <p className="font-medium">Current Task:</p>
-                      <p className="text-gray-800">{selectedLocation.task_title}</p>
-                      <p className="text-xs text-gray-600">Due: {new Date(selectedLocation.task_due_date || '').toLocaleDateString()}</p>
+
+                    <div className="flex justify-between">
+                      <span className="text-gray-600">Last Update:</span>
+                      <span className="font-medium">{new Date(selectedEmployee.recorded_at).toLocaleTimeString()}</span>
+                    </div>
+                    
+                    <div className="flex justify-between">
+                      <span className="text-gray-600">Location:</span>
+                      <span className="font-medium text-right">{selectedEmployee.address}</span>
+                    </div>
+                    
+                    {selectedEmployee.battery_level && (
+                      <div className="flex justify-between">
+                        <span className="text-gray-600">Battery:</span>
+                        <span className="font-medium">{selectedEmployee.battery_level}%</span>
                     </div>
                   )}
-                  {selectedLocation.battery_level !== undefined && (
-                    <p className="text-xs md:text-sm">Battery: <span className="font-medium">{selectedLocation.battery_level}%</span></p>
-                  )}
-                  {selectedLocation.location_accuracy && (
-                    <p className="text-xs md:text-sm">Accuracy: <span className="font-medium">{Math.round(selectedLocation.location_accuracy)}m</span></p>
+
+                    {selectedEmployee.location_accuracy && (
+                      <div className="flex justify-between">
+                        <span className="text-gray-600">Accuracy:</span>
+                        <span className="font-medium">±{Math.round(selectedEmployee.location_accuracy)}m</span>
+                      </div>
+                    )}
+                    
+                    {selectedEmployee.task_title && (
+                      <div className="mt-3 p-2 bg-blue-50 rounded">
+                        <div className="text-xs text-blue-800 font-medium">Current Task:</div>
+                        <div className="text-sm font-medium text-blue-900">{selectedEmployee.task_title}</div>
+                      </div>
                   )}
                 </div>
               </div>
@@ -717,39 +1432,102 @@ export default function EmployeeTrackingMap() {
         </GoogleMap>
       </div>
 
-      {/* Status Summary */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 md:gap-4">
-        <div className="bg-white rounded-lg shadow p-3 md:p-4">
-          <div className="flex items-center">
-            <UserGroupIcon className="h-5 w-5 md:h-6 md:w-6 text-indigo-600" />
-            <div className="ml-3">
-              <p className="text-sm font-medium text-gray-500">Total Employees</p>
-              <p className="text-lg md:text-xl font-semibold text-gray-900">{locations.length}</p>
+        {/* Employee Grid */}
+        {locations.length === 0 ? (
+          <div className="bg-white rounded-xl shadow-lg p-12 text-center">
+            <div className="text-gray-400 mb-4">
+              <MapIcon className="mx-auto h-16 w-16" />
+            </div>
+            <h3 className="text-xl font-semibold text-gray-900 mb-2">No Employees Currently Tracked</h3>
+            <p className="text-gray-600 mb-6 max-w-md mx-auto">
+              Employee locations will appear here once they start using the mobile app and grant location permissions.
+            </p>
+            <div className="bg-blue-50 rounded-lg p-4 max-w-lg mx-auto">
+              <h4 className="font-medium text-blue-900 mb-2">For employees to appear on the map:</h4>
+              <ul className="text-sm text-blue-800 space-y-1 text-left">
+                <li>• Log into the employee mobile interface</li>
+                <li>• Grant location permissions when prompted</li>
+                <li>• Access location-based tasks or check-in features</li>
+                <li>• Use 'Manual Refresh' button to update locations</li>
+              </ul>
             </div>
           </div>
-        </div>
-        <div className="bg-white rounded-lg shadow p-3 md:p-4">
-          <div className="flex items-center">
-            <div className="rounded-full bg-green-100 p-2">
-              <LocationMarkerIcon className="h-5 w-5 md:h-6 md:w-6 text-green-600" />
+        ) : (
+          <div className="bg-white rounded-xl shadow-lg overflow-hidden">
+            <div className="px-6 py-4 bg-gray-50 border-b border-gray-200">
+              <h3 className="text-lg font-semibold text-gray-900 flex items-center">
+                <UserGroupIcon className="h-6 w-6 mr-2 text-indigo-600" />
+                Employee Status ({filteredLocations.length})
+              </h3>
             </div>
-            <div className="ml-3">
-              <p className="text-sm font-medium text-gray-500">Active</p>
-              <p className="text-lg md:text-xl font-semibold text-gray-900">{locations.filter(l => l.connection_status === 'online').length}</p>
+            
+            <div className="p-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                {filteredLocations.map((location) => (
+                  <div
+                    key={location.user_id}
+                    className={`p-4 rounded-lg border-2 cursor-pointer transition-all hover:shadow-md ${
+                      selectedEmployee?.user_id === location.user_id
+                        ? 'border-indigo-500 bg-indigo-50'
+                        : 'border-gray-200 bg-white hover:border-gray-300'
+                    }`}
+                    onClick={() => handleEmployeeSelect(location)}
+                  >
+                    <div className="flex items-center mb-3">
+                      <div className="relative">
+                        <img
+                          src={location.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(location.full_name)}&background=3b82f6&color=fff`}
+                          alt={location.full_name}
+                          className="w-12 h-12 rounded-full"
+                        />
+                        <div className={`absolute -bottom-1 -right-1 w-4 h-4 rounded-full border-2 border-white ${
+                          location.connection_status === 'online' ? 'bg-green-500' : 'bg-red-500'
+                        }`}></div>
             </div>
+                      <div className="ml-3 flex-1">
+                        <h4 className="font-semibold text-gray-900 truncate">{location.full_name}</h4>
+                        <p className="text-xs text-gray-500 truncate">{location.email}</p>
           </div>
         </div>
-        <div className="bg-white rounded-lg shadow p-3 md:p-4">
-          <div className="flex items-center">
-            <div className="rounded-full bg-red-100 p-2">
-              <AdjustmentsIcon className="h-5 w-5 md:h-6 md:w-6 text-red-600" />
+        
+                    <div className="space-y-2 text-xs">
+                      <div className="flex justify-between">
+                        <span className="text-gray-600">Last Seen:</span>
+                        <span className="font-medium">{new Date(location.recorded_at).toLocaleTimeString()}</span>
+                      </div>
+                      
+                      <div className="flex justify-between">
+                        <span className="text-gray-600">Location:</span>
+                        <span className="font-medium text-right truncate ml-2" title={location.address}>
+                          {location.address?.split(',')[0] || 'Unknown'}
+                        </span>
+                      </div>
+                      
+                      {location.battery_level && (
+                        <div className="flex justify-between">
+                          <span className="text-gray-600">Battery:</span>
+                          <span className={`font-medium ${
+                            location.battery_level > 20 ? 'text-green-600' : 'text-red-600'
+                          }`}>
+                            {location.battery_level}%
+                          </span>
+                        </div>
+                      )}
+                      
+                      {location.task_title && (
+                        <div className="mt-2 p-2 bg-blue-50 rounded text-center">
+                          <div className="text-blue-800 font-medium truncate" title={location.task_title}>
+                            📋 {location.task_title}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                ))}
             </div>
-            <div className="ml-3">
-              <p className="text-sm font-medium text-gray-500">Inactive</p>
-              <p className="text-lg md:text-xl font-semibold text-gray-900">{locations.filter(l => l.connection_status !== 'online').length}</p>
             </div>
           </div>
-        </div>
+        )}
       </div>
     </div>
   );

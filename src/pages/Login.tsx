@@ -1,11 +1,12 @@
-import { useState } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useEffect, useState } from 'react';
+import { useNavigate, Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../lib/supabase';
 import toast from 'react-hot-toast';
 
 export default function Login() {
   const navigate = useNavigate();
+  const location = useLocation();
   const { signIn } = useAuth();
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
@@ -30,18 +31,60 @@ export default function Login() {
         .eq('id', user.id)
         .single();
 
-      if (userError) throw userError;
+      if (userError) {
+        // If user doesn't exist in users table, try to get role from auth metadata
+        const role = user.user_metadata?.role || 'employee';
+        console.warn('User not found in users table, using auth metadata role:', role);
+        
+        // Redirect based on role from auth metadata
+        if (role === 'admin') {
+          navigate('/admin');
+        } else {
+          const params = new URLSearchParams(location.search);
+          const mid = params.get('meetingId');
+          const type = params.get('type');
+          if (mid && type) {
+            navigate(`/employee?meetingId=${encodeURIComponent(mid)}&type=${encodeURIComponent(type)}`);
+          } else {
+            navigate('/employee');
+          }
+        }
+        toast.success('Successfully logged in!');
+        return;
+      }
 
-      // Redirect based on role
+      // Redirect based on role (preserve meeting params if present)
       if (userData?.role === 'admin') {
         navigate('/admin');
       } else {
-        navigate('/employee');
+        const params = new URLSearchParams(location.search);
+        const mid = params.get('meetingId');
+        const type = params.get('type');
+        if (mid && type) {
+          navigate(`/employee?meetingId=${encodeURIComponent(mid)}&type=${encodeURIComponent(type)}`);
+        } else {
+          navigate('/employee');
+        }
       }
       
       toast.success('Successfully logged in!');
     } catch (error: any) {
-      toast.error(error.message || 'Failed to login');
+      console.error('Login error:', error);
+      
+      // Provide more specific error messages
+      let errorMessage = 'Failed to login';
+      
+      if (error.message?.includes('Invalid login credentials')) {
+        errorMessage = 'Invalid email or password';
+      } else if (error.message?.includes('Failed to fetch')) {
+        errorMessage = 'Network error. Please check your internet connection and Supabase configuration.';
+      } else if (error.message?.includes('Missing Supabase environment variables')) {
+        errorMessage = 'Server configuration error. Please contact administrator.';
+      } else if (error.message) {
+        errorMessage = error.message;
+      }
+      
+      toast.error(errorMessage);
     } finally {
       setLoading(false);
     }

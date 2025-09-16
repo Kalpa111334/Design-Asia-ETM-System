@@ -51,8 +51,8 @@ export default function Chat() {
     };
 
     return (
-        <div className="flex flex-col h-[calc(100vh-4rem)] max-w-3xl mx-auto p-4">
-            <div className="flex-1 overflow-y-auto mb-4 space-y-4">
+        <div className="flex flex-col h-[calc(100vh-4rem)] max-w-3xl mx-auto p-2 sm:p-4">
+            <div className="flex-1 overflow-y-auto mb-4 space-y-3 sm:space-y-4">
                 {messages.map((message) => (
                     <div
                         key={message.id}
@@ -63,13 +63,13 @@ export default function Chat() {
                         }`}
                     >
                         <div
-                            className={`max-w-[70%] rounded-lg p-3 ${
+                            className={`max-w-[85%] sm:max-w-[70%] rounded-lg p-2 sm:p-3 ${
                                 message.sender_id === session?.user?.id
                                     ? 'bg-blue-500 text-white'
                                     : 'bg-gray-200'
                             }`}
                         >
-                            <p className="break-words">{message.content}</p>
+                            <p className="break-words text-sm sm:text-base">{message.content}</p>
                             <p className="text-xs mt-1 opacity-70">
                                 {new Date(message.created_at).toLocaleTimeString()}
                             </p>
@@ -84,13 +84,13 @@ export default function Chat() {
                     value={newMessage}
                     onChange={(e) => setNewMessage(e.target.value)}
                     placeholder="Type a message..."
-                    className="flex-1 rounded-lg border p-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="flex-1 rounded-lg border p-2 sm:p-3 text-sm sm:text-base focus:outline-none focus:ring-2 focus:ring-blue-500 touch-manipulation"
                     disabled={isLoading}
                 />
                 <button
                     type="submit"
                     disabled={isLoading}
-                    className="bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50"
+                    className="bg-blue-500 text-white px-3 sm:px-4 py-2 sm:py-3 rounded-lg hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50 touch-manipulation transform active:scale-95 transition-transform text-sm sm:text-base"
                 >
                     Send
                 </button>

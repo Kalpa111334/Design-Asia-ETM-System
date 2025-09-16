@@ -1,0 +1,49 @@
+<svg width="192" height="192" viewBox="0 0 192 192" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <!-- Modern gradient backgrounds -->
+    <linearGradient id="bgGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#6366F1;stop-opacity:1" />
+      <stop offset="50%" style="stop-color:#8B5CF6;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#A855F7;stop-opacity:1" />
+    </linearGradient>
+    
+    <!-- Eye gradient -->
+    <linearGradient id="eyeGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#FFFFFF;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#F8FAFC;stop-opacity:1" />
+    </linearGradient>
+    
+    <!-- Checkmark gradient -->
+    <linearGradient id="checkGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#10B981;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#059669;stop-opacity:1" />
+    </linearGradient>
+    
+    <!-- Shadow filter -->
+    <filter id="shadow" x="-50%" y="-50%" width="200%" height="200%">
+      <feDropShadow dx="0" dy="8" stdDeviation="8" flood-color="#000000" flood-opacity="0.15"/>
+    </filter>
+  </defs>
+  
+  <!-- Main background with subtle shadow -->
+  <circle cx="96" cy="96" r="93" fill="url(#bgGradient)" filter="url(#shadow)"/>
+  
+  <!-- Inner highlight circle -->
+  <circle cx="96" cy="96" r="84" fill="none" stroke="#FFFFFF" stroke-width="3" opacity="0.3"/>
+  
+  <!-- Eye shape (Vision) - more refined -->
+  <ellipse cx="96" cy="78" rx="42" ry="27" fill="url(#eyeGradient)" opacity="0.95"/>
+  
+  <!-- Eye pupil -->
+  <circle cx="96" cy="78" r="15" fill="#1E293B"/>
+  
+  <!-- Eye highlight -->
+  <circle cx="100.8" cy="73.2" r="4.8" fill="#FFFFFF" opacity="0.9"/>
+  
+  <!-- Checkmark (Task completion) - more elegant -->
+  <path d="M42 126 L69 153 L150 72" stroke="url(#checkGradient)" stroke-width="16.8" stroke-linecap="round" stroke-linejoin="round" fill="none" filter="url(#shadow)"/>
+  
+  <!-- Subtle accent dots -->
+  <circle cx="48" cy="48" r="6" fill="#FFFFFF" opacity="0.4"/>
+  <circle cx="144" cy="48" r="6" fill="#FFFFFF" opacity="0.4"/>
+</svg>

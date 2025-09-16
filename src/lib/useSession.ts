@@ -12,12 +12,24 @@ export function useSession() {
     supabase.auth.getSession().then(async ({ data: { session } }) => {
       setSession(session);
       if (session?.user) {
-        const { data } = await supabase
+        const { data, error } = await supabase
           .from('users')
           .select('*')
           .eq('id', session.user.id)
           .single();
-        setUser(data);
+        
+        if (error) {
+          // If user doesn't exist in users table, create user from auth metadata
+          console.warn('User not found in users table, using auth metadata');
+          setUser({
+            id: session.user.id,
+            email: session.user.email!,
+            full_name: session.user.user_metadata?.full_name || '',
+            role: session.user.user_metadata?.role || 'employee',
+          });
+        } else {
+          setUser(data);
+        }
       } else {
         setUser(null);
       }
@@ -29,12 +41,24 @@ export function useSession() {
     } = supabase.auth.onAuthStateChange(async (_event, session) => {
       setSession(session);
       if (session?.user) {
-        const { data } = await supabase
+        const { data, error } = await supabase
           .from('users')
           .select('*')
           .eq('id', session.user.id)
           .single();
-        setUser(data);
+        
+        if (error) {
+          // If user doesn't exist in users table, create user from auth metadata
+          console.warn('User not found in users table, using auth metadata');
+          setUser({
+            id: session.user.id,
+            email: session.user.email!,
+            full_name: session.user.user_metadata?.full_name || '',
+            role: session.user.user_metadata?.role || 'employee',
+          });
+        } else {
+          setUser(data);
+        }
       } else {
         setUser(null);
       }

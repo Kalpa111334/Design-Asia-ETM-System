@@ -11,7 +11,9 @@ import {
   CalendarIcon,
   CurrencyDollarIcon,
   PlusIcon,
+  DocumentIcon,
 } from '@heroicons/react/outline';
+import { ResponsiveContainer, ResponsiveCard } from '../../components/ui/ResponsiveComponents';
 
 export default function TaskPool() {
   const [tasks, setTasks] = useState<Task[]>([]);
@@ -32,11 +34,28 @@ export default function TaskPool() {
         .is('assigned_to', null)
         .order('created_at', { ascending: false });
 
-      if (error) throw error;
+      if (error) {
+        console.error('Supabase error fetching tasks:', error);
+        throw new Error(`Database error: ${error.message}`);
+      }
       setTasks(data || []);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error fetching tasks:', error);
-      toast.error('Failed to fetch tasks');
+      
+      // Provide more specific error messages
+      let errorMessage = 'Failed to fetch tasks';
+      
+      if (error.message?.includes('relation "tasks" does not exist')) {
+        errorMessage = 'Tasks table not found. Please run database migrations.';
+      } else if (error.message?.includes('permission denied')) {
+        errorMessage = 'Permission denied. Please check your access rights.';
+      } else if (error.message?.includes('Database error')) {
+        errorMessage = `Database error: ${error.message.split('Database error: ')[1]}`;
+      } else if (error.message) {
+        errorMessage = error.message;
+      }
+      
+      toast.error(errorMessage);
     } finally {
       setLoading(false);
     }
@@ -49,11 +68,28 @@ export default function TaskPool() {
         .select('*')
         .eq('role', 'employee');
 
-      if (error) throw error;
+      if (error) {
+        console.error('Supabase error fetching employees:', error);
+        throw new Error(`Database error: ${error.message}`);
+      }
       setEmployees(data || []);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error fetching employees:', error);
-      toast.error('Failed to fetch employees');
+      
+      // Provide more specific error messages
+      let errorMessage = 'Failed to fetch employees';
+      
+      if (error.message?.includes('relation "users" does not exist')) {
+        errorMessage = 'Users table not found. Please run database migrations.';
+      } else if (error.message?.includes('permission denied')) {
+        errorMessage = 'Permission denied. Please check your access rights.';
+      } else if (error.message?.includes('Database error')) {
+        errorMessage = `Database error: ${error.message.split('Database error: ')[1]}`;
+      } else if (error.message) {
+        errorMessage = error.message;
+      }
+      
+      toast.error(errorMessage);
     }
   }
 
@@ -93,78 +129,98 @@ export default function TaskPool() {
 
   return (
     <Layout>
-      <div className="py-6">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 md:px-8">
-          <div className="flex justify-between items-center">
-            <h1 className="text-2xl font-semibold text-gray-900">Task Pool</h1>
-            <Link
-              to="/admin/tasks/create"
-              className="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
-            >
-              <PlusIcon className="h-5 w-5 mr-2" />
-              Create Task
-            </Link>
-          </div>
-          <p className="mt-2 text-sm text-gray-700">
-            Unassigned tasks waiting to be assigned to employees.
-          </p>
-        </div>
+      <ResponsiveContainer>
+        <div className="space-y-4 sm:space-y-6">
+          {/* Header Section */}
+          <ResponsiveCard>
+            <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 justify-between items-start sm:items-center">
+              <div>
+                <h1 className="text-xl sm:text-2xl font-semibold text-gray-900">Task Pool</h1>
+                <p className="mt-1 text-sm text-gray-600">
+                  Unassigned tasks waiting to be assigned to employees.
+                </p>
+              </div>
+              <Link
+                to="/admin/tasks/create"
+                className="w-full sm:w-auto inline-flex items-center justify-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 touch-manipulation transform active:scale-95 transition-transform"
+              >
+                <PlusIcon className="h-5 w-5 mr-2" />
+                Create Task
+              </Link>
+            </div>
+          </ResponsiveCard>
 
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 md:px-8">
-          <div className="mt-8">
+          {/* Content Section */}
+          <ResponsiveCard>
             {loading ? (
               <div className="flex justify-center items-center h-64">
                 <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-500"></div>
               </div>
             ) : tasks.length === 0 ? (
-              <div className="text-center py-12 bg-white rounded-lg shadow">
-                <p className="text-gray-500 text-lg">No unassigned tasks available</p>
-                <Link
-                  to="/admin/tasks/create"
-                  className="mt-4 inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700"
-                >
-                  <PlusIcon className="h-5 w-5 mr-2" />
-                  Create New Task
-                </Link>
+              <div className="text-center py-12">
+                <div className="mx-auto h-12 w-12 text-gray-400">
+                  <DocumentIcon className="h-12 w-12" />
+                </div>
+                <h3 className="mt-2 text-sm font-medium text-gray-900">No unassigned tasks</h3>
+                <p className="mt-1 text-sm text-gray-500">
+                  All tasks have been assigned or there are no tasks yet.
+                </p>
+                <div className="mt-6">
+                  <Link
+                    to="/admin/tasks/create"
+                    className="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 touch-manipulation transform active:scale-95 transition-transform"
+                  >
+                    <PlusIcon className="h-5 w-5 mr-2" />
+                    Create New Task
+                  </Link>
+                </div>
               </div>
             ) : (
-              <div className="bg-white shadow overflow-hidden sm:rounded-md">
+              <div className="overflow-x-auto">
                 <ul role="list" className="divide-y divide-gray-200">
                   {tasks.map((task) => (
-                    <li key={task.id} className="px-4 py-4 sm:px-6 hover:bg-gray-50">
-                      <div className="flex items-center justify-between">
+                    <li key={task.id} className="px-3 sm:px-4 py-4 hover:bg-gray-50 transition-colors">
+                      <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
+                        {/* Task Info */}
                         <div className="flex-1 min-w-0">
-                          <div className="flex items-center justify-between">
-                            <p className="text-lg font-medium text-indigo-600 truncate">
+                          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+                            <p className="text-base sm:text-lg font-medium text-indigo-600 truncate">
                               {task.title}
                             </p>
-                            <div className="ml-2 flex-shrink-0">
+                            <div className="flex items-center gap-2">
                               <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${getStatusColor(task.priority)}`}>
                                 {task.priority}
                               </span>
+                              <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-gray-100 text-gray-800">
+                                Unassigned
+                              </span>
                             </div>
                           </div>
-                          <p className="mt-1 text-sm text-gray-600">{task.description}</p>
-                          <div className="mt-2 flex items-center space-x-4 text-sm text-gray-500">
-                            <div className="flex items-center">
-                              <ClockIcon className="h-4 w-4 mr-1" />
-                              {task.actual_time || 0}h
+                          <p className="mt-1 text-sm text-gray-600 line-clamp-2">{task.description}</p>
+                          
+                          {/* Task Details */}
+                          <div className="mt-3 flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4">
+                            <div className="flex items-center text-xs sm:text-sm text-gray-500">
+                              <ClockIcon className="h-4 w-4 mr-1.5 flex-shrink-0" />
+                              <span>{task.actual_time || 0}h estimated</span>
                             </div>
-                            <div className="flex items-center">
-                              <CurrencyDollarIcon className="h-4 w-4 mr-1" />
-                              {formatCurrency(task.price)}
+                            <div className="flex items-center text-xs sm:text-sm text-gray-500">
+                              <CurrencyDollarIcon className="h-4 w-4 mr-1.5 flex-shrink-0" />
+                              <span>{formatCurrency(task.price)}</span>
                             </div>
-                            <div className="flex items-center">
-                              <CalendarIcon className="h-4 w-4 mr-1" />
-                              Due: {new Date(task.due_date).toLocaleDateString()}
+                            <div className="flex items-center text-xs sm:text-sm text-gray-500">
+                              <CalendarIcon className="h-4 w-4 mr-1.5 flex-shrink-0" />
+                              <span>Due: {new Date(task.due_date).toLocaleDateString()}</span>
                             </div>
                           </div>
                         </div>
-                        <div className="ml-6">
+
+                        {/* Assignment Controls */}
+                        <div className="flex-shrink-0">
                           {assigningTask === task.id ? (
-                            <div className="flex items-center space-x-2">
+                            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-3">
                               <select
-                                className="block w-48 pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md"
+                                className="block w-full sm:w-48 pl-3 pr-10 py-2 text-sm border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 rounded-md touch-manipulation"
                                 onChange={(e) => assignTask(task.id, e.target.value)}
                                 defaultValue=""
                                 aria-label="Select employee to assign task"
@@ -178,7 +234,7 @@ export default function TaskPool() {
                               </select>
                               <button
                                 onClick={() => setAssigningTask(null)}
-                                className="inline-flex items-center px-3 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+                                className="w-full sm:w-auto inline-flex items-center justify-center px-3 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 touch-manipulation transform active:scale-95 transition-transform"
                               >
                                 Cancel
                               </button>
@@ -186,7 +242,7 @@ export default function TaskPool() {
                           ) : (
                             <button
                               onClick={() => setAssigningTask(task.id)}
-                              className="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+                              className="w-full sm:w-auto inline-flex items-center justify-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 touch-manipulation transform active:scale-95 transition-transform"
                             >
                               <UserIcon className="h-5 w-5 mr-2" />
                               Assign
@@ -199,9 +255,9 @@ export default function TaskPool() {
                 </ul>
               </div>
             )}
-          </div>
+          </ResponsiveCard>
         </div>
-      </div>
+      </ResponsiveContainer>
     </Layout>
   );
 } 

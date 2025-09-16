@@ -141,7 +141,7 @@ export default function Analytics() {
         </div>
         <div className="max-w-7xl mx-auto px-4 sm:px-6 md:px-8">
           {/* Summary Cards */}
-          <div className="mt-8 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="mt-8 grid grid-cols-1 gap-3 sm:gap-5 sm:grid-cols-2 lg:grid-cols-3">
             <div className="bg-white overflow-hidden shadow rounded-lg">
               <div className="p-5">
                 <div className="flex items-center">
@@ -195,7 +195,7 @@ export default function Analytics() {
           </div>
 
           {/* Charts */}
-          <div className="mt-8 grid grid-cols-1 gap-5 lg:grid-cols-2">
+          <div className="mt-8 grid grid-cols-1 gap-3 sm:gap-5 lg:grid-cols-2">
             <div className="bg-white p-6 rounded-lg shadow">
               <h3 className="text-lg font-medium text-gray-900 mb-4">Task Status Distribution</h3>
               <div className="h-64">

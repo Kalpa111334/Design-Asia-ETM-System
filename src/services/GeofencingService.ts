@@ -73,26 +73,104 @@ export interface TaskLocationEvent {
 export class GeofencingService {
   // Geofence Management
   static async createGeofence(geofence: Omit<Geofence, 'id' | 'created_at' | 'updated_at'>): Promise<Geofence> {
-    const { data, error } = await supabase
-      .from('geofences')
-      .insert([geofence])
-      .select()
-      .single();
+    try {
+      // First, ensure the user exists in the users table
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        throw new Error('User not authenticated');
+      }
 
-    if (error) throw error;
-    return data;
+      // Check if user exists in public.users table
+      const { data: userData, error: userError } = await supabase
+        .from('users')
+        .select('id')
+        .eq('id', user.id)
+        .single();
+
+      if (userError && userError.code !== 'PGRST116') {
+        console.error('Error checking user:', userError);
+        throw new Error('User validation failed');
+      }
+
+      // If user doesn't exist in public.users, create them
+      if (userError && userError.code === 'PGRST116') {
+        console.log('User not found in public.users, creating user record...');
+        const { error: createUserError } = await supabase
+          .from('users')
+          .insert([{
+            id: user.id,
+            email: user.email!,
+            full_name: user.user_metadata?.full_name || user.email!.split('@')[0],
+            role: user.user_metadata?.role || 'employee'
+          }]);
+
+        if (createUserError) {
+          console.error('Error creating user:', createUserError);
+          throw new Error('Failed to create user record');
+        }
+      }
+
+      // Now create the geofence
+      const { data, error } = await supabase
+        .from('geofences')
+        .insert([geofence])
+        .select()
+        .single();
+
+      if (error) {
+        console.error('Supabase error creating geofence:', error);
+        throw new Error(`Database error: ${error.message}`);
+      }
+      
+      if (!data) {
+        throw new Error('No data returned from geofence creation');
+      }
+      
+      return data;
+    } catch (error: any) {
+      console.error('Error in createGeofence:', error);
+      if (error.message?.includes('relation "geofences" does not exist')) {
+        throw new Error('Geofences table not found. Please run database migrations.');
+      }
+      if (error.message?.includes('row-level security policy')) {
+        throw new Error('Permission denied. You need admin role to create geofences.');
+      }
+      if (error.message?.includes('violates row-level security')) {
+        throw new Error('Permission denied. You need admin role to create geofences.');
+      }
+      if (error.message?.includes('foreign key constraint')) {
+        throw new Error('User not found in database. Please contact administrator.');
+      }
+      throw error;
+    }
   }
 
   static async getGeofences(activeOnly: boolean = true): Promise<Geofence[]> {
-    let query = supabase.from('geofences').select('*');
-    
-    if (activeOnly) {
-      query = query.eq('is_active', true);
-    }
+    try {
+      let query = supabase.from('geofences').select('*');
+      
+      if (activeOnly) {
+        query = query.eq('is_active', true);
+      }
 
-    const { data, error } = await query.order('created_at', { ascending: false });
-    if (error) throw error;
-    return data || [];
+      const { data, error } = await query.order('created_at', { ascending: false });
+      
+      if (error) {
+        console.error('Supabase error fetching geofences:', error);
+        throw new Error(`Database error: ${error.message}`);
+      }
+      
+      return data || [];
+    } catch (error: any) {
+      console.error('Error in getGeofences:', error);
+      if (error.message?.includes('relation "geofences" does not exist')) {
+        throw new Error('Geofences table not found. Please run database migrations.');
+      }
+      if (error.message?.includes('permission denied')) {
+        throw new Error('Permission denied. Please check your access rights.');
+      }
+      throw error;
+    }
   }
 
   static async updateGeofence(id: string, updates: Partial<Geofence>): Promise<Geofence> {

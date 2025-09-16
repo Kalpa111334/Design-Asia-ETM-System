@@ -8,7 +8,7 @@ interface MapLocationPickerProps {
   initialCenter?: { lat: number; lng: number };
 }
 
-const defaultCenter = { lat: 6.927079, lng: 79.861244 }; // Default to Colombo, Sri Lanka
+const defaultCenter = { lat: 7.8731, lng: 80.7718 }; // Default to Central Sri Lanka (Kandy area)
 const libraries: ("places" | "geometry" | "drawing" | "visualization")[] = ["places"];
 
 export default function MapLocationPicker({ 
@@ -76,14 +76,232 @@ export default function MapLocationPicker({
       <div className="h-[400px] rounded-lg overflow-hidden">
         <GoogleMap
           mapContainerStyle={{ width: '100%', height: '100%' }}
-          zoom={13}
+          zoom={20} // Ultra-high zoom for road-focused detail
           center={initialCenter || defaultCenter}
           onClick={handleMapClick}
           options={{
             zoomControl: true,
             streetViewControl: false,
-            mapTypeControl: true,
+            mapTypeControl: false, // Disable for road-only view
             fullscreenControl: false,
+            minZoom: 16, // Higher minimum zoom to focus on roads
+            maxZoom: 25,
+            restriction: {
+              latLngBounds: {
+                north: 9.8317,  // Point Pedro (Northern tip)
+                south: 5.9169,  // Dondra Head (Southern tip)
+                west: 79.6951,  // Kalpitiya (Western coast)  
+                east: 81.8914,  // Sangamankanda Point (Eastern coast)
+              },
+              strictBounds: true, // Keep focus on Sri Lanka
+            },
+            styles: [
+              // Beautiful modern map styling
+              {
+                featureType: 'all',
+                elementType: 'all',
+                stylers: [{ visibility: 'on' }],
+              },
+              // Beautiful landscape background
+              {
+                featureType: 'landscape',
+                elementType: 'geometry',
+                stylers: [
+                  { visibility: 'on' },
+                  { color: '#e3f2e3' },
+                  { lightness: 10 }
+                ],
+              },
+              // Major highways - vibrant orange
+              {
+                featureType: 'road.highway',
+                elementType: 'geometry',
+                stylers: [
+                  { visibility: 'on' },
+                  { color: '#f97316' },
+                  { weight: 8 },
+                  { saturation: 100 }
+                ],
+              },
+              {
+                featureType: 'road.highway',
+                elementType: 'labels',
+                stylers: [
+                  { visibility: 'on' },
+                  { color: '#f97316' },
+                  { weight: 'bold' },
+                  { gamma: 1.5 }
+                ],
+              },
+              // Arterial roads - beautiful blue
+              {
+                featureType: 'road.arterial',
+                elementType: 'geometry',
+                stylers: [
+                  { visibility: 'on' },
+                  { color: '#2563eb' },
+                  { weight: 6 },
+                  { saturation: 80 }
+                ],
+              },
+              {
+                featureType: 'road.arterial',
+                elementType: 'labels',
+                stylers: [
+                  { visibility: 'on' },
+                  { color: '#2563eb' },
+                  { weight: 'bold' }
+                ],
+              },
+              // Local roads - vibrant green
+              {
+                featureType: 'road.local',
+                elementType: 'geometry',
+                stylers: [
+                  { visibility: 'on' },
+                  { color: '#10b981' },
+                  { weight: 4 },
+                  { saturation: 60 }
+                ],
+              },
+              {
+                featureType: 'road.local',
+                elementType: 'labels',
+                stylers: [
+                  { visibility: 'on' },
+                  { color: '#10b981' }
+                ],
+              },
+              // Other roads - clean white
+              {
+                featureType: 'road',
+                elementType: 'geometry',
+                stylers: [
+                  { visibility: 'on' },
+                  { color: '#ffffff' },
+                  { weight: 3 },
+                  { gamma: 1.2 }
+                ],
+              },
+              {
+                featureType: 'road',
+                elementType: 'labels',
+                stylers: [
+                  { visibility: 'on' },
+                  { color: '#2563eb' },
+                  { gamma: 1.5 }
+                ],
+              },
+              // Beautiful water features
+              {
+                featureType: 'water',
+                elementType: 'geometry',
+                stylers: [
+                  { visibility: 'on' },
+                  { color: '#40b3e7' },
+                  { lightness: 20 }
+                ],
+              },
+              {
+                featureType: 'water',
+                elementType: 'labels',
+                stylers: [
+                  { visibility: 'on' },
+                  { color: '#ffffff' },
+                  { weight: 'bold' }
+                ],
+              },
+              // Parks and natural features - vibrant green
+              {
+                featureType: 'poi.park',
+                elementType: 'geometry',
+                stylers: [
+                  { visibility: 'on' },
+                  { color: '#81c784' },
+                  { lightness: 20 }
+                ],
+              },
+              {
+                featureType: 'poi.park',
+                elementType: 'labels',
+                stylers: [
+                  { visibility: 'on' },
+                  { color: '#2e7d32' },
+                  { weight: 'bold' }
+                ],
+              },
+              // Hide unnecessary POIs
+              {
+                featureType: 'poi.business',
+                elementType: 'all',
+                stylers: [{ visibility: 'off' }],
+              },
+              {
+                featureType: 'poi.attraction',
+                elementType: 'all',
+                stylers: [{ visibility: 'off' }],
+              },
+              {
+                featureType: 'poi.government',
+                elementType: 'all',
+                stylers: [{ visibility: 'off' }],
+              },
+              {
+                featureType: 'poi.medical',
+                elementType: 'all',
+                stylers: [{ visibility: 'off' }],
+              },
+              {
+                featureType: 'poi.place_of_worship',
+                elementType: 'all',
+                stylers: [{ visibility: 'off' }],
+              },
+              {
+                featureType: 'poi.school',
+                elementType: 'all',
+                stylers: [{ visibility: 'off' }],
+              },
+              {
+                featureType: 'poi.sports_complex',
+                elementType: 'all',
+                stylers: [{ visibility: 'off' }],
+              },
+              // Hide transit
+              {
+                featureType: 'transit',
+                elementType: 'all',
+                stylers: [{ visibility: 'off' }],
+              },
+              // Beautiful country borders
+              {
+                featureType: 'administrative.country',
+                elementType: 'geometry.stroke',
+                stylers: [
+                  { visibility: 'on' },
+                  { color: '#ff9800' },
+                  { weight: 2 }
+                ],
+              },
+              {
+                featureType: 'administrative.country',
+                elementType: 'labels',
+                stylers: [
+                  { visibility: 'on' },
+                  { color: '#e65100' },
+                  { weight: 'bold' }
+                ],
+              },
+              // Province/state borders
+              {
+                featureType: 'administrative.province',
+                elementType: 'geometry.stroke',
+                stylers: [
+                  { visibility: 'on' },
+                  { color: '#ffb74d' },
+                  { weight: 1 }
+                ],
+              },
+            ],
           }}
         >
           {selectedLocation && (

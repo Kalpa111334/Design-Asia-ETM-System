@@ -6,17 +6,33 @@ export interface User {
   role: 'admin' | 'employee';
   skills?: string[];
   created_at: string;
+  has_auth_access?: boolean;
+}
+
+export interface TaskLocation {
+  id: string;
+  task_id: string;
+  geofence_id?: string;
+  required_latitude?: number;
+  required_longitude?: number;
+  required_radius_meters?: number;
+  arrival_required?: boolean;
+  departure_required?: boolean;
+  created_at: string;
 }
 
 export interface Task {
   id: string;
   title: string;
   description: string;
-  status: 'Not Started' | 'In Progress' | 'Paused' | 'Completed';
+  status: 'Planned' | 'Not Started' | 'In Progress' | 'Paused' | 'Completed' | 'Pending';
   priority: 'High' | 'Medium' | 'Low';
   assigned_to?: string;
   price: number;
   due_date: string;
+  start_date: string;
+  end_date: string;
+  time_assigning: number; // in minutes
   created_at: string;
   started_at?: string;
   completed_at?: string;
@@ -28,6 +44,11 @@ export interface Task {
   proof_photo_url?: string;
   completion_notes?: string;
   updated_at?: string;
+  task_locations?: TaskLocation[];
+  forwarded_at?: string;
+  original_due_date?: string;
+  task_attachments?: Attachment[];
+  completion_type?: 'with_proof' | 'without_proof';
 }
 
 export interface TaskProof {
@@ -37,6 +58,10 @@ export interface TaskProof {
   description: string;
   submitted_by: string;
   created_at: string;
+  status: 'Pending' | 'Approved' | 'Rejected';
+  reviewed_by?: string;
+  reviewed_at?: string;
+  rejection_reason?: string;
 }
 
 export interface ChatMessage {
@@ -64,4 +89,7 @@ export interface TimeLog {
   end_time?: string;
   duration?: number;
   created_at: string;
-} 
+}
+
+// Re-export attachment types
+export * from './attachment'; 

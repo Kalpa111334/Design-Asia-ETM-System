@@ -1,6 +1,6 @@
 import React, { ReactNode, useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
-import { Link, useLocation } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { User } from '../types/index';
 import {
   HomeIcon,
@@ -17,7 +17,10 @@ import {
   InboxIcon,
   LocationMarkerIcon,
   MapIcon,
+  ShieldCheckIcon,
 } from '@heroicons/react/outline';
+import { VideoCameraIcon } from '@heroicons/react/solid';
+import { MeetingSignalingService, SignalingMessage } from '../services/MeetingSignalingService';
 
 interface LayoutProps {
   children: ReactNode;
@@ -26,8 +29,10 @@ interface LayoutProps {
 export default function Layout({ children }: LayoutProps) {
   const { user, signOut } = useAuth();
   const location = useLocation();
+  const navigate = useNavigate();
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isMobile, setIsMobile] = useState(window.innerWidth < 1024);
+  const [invite, setInvite] = useState<SignalingMessage | null>(null);
 
   useEffect(() => {
     const handleResize = () => {
@@ -40,6 +45,26 @@ export default function Layout({ children }: LayoutProps) {
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
   }, []);
+
+  // Global meeting invite listener for employees across pages
+  useEffect(() => {
+    if (!user || user.role !== 'employee') return;
+    let unsub: (() => void) | null = null;
+    (async () => {
+      unsub = await MeetingSignalingService.subscribePersonal(user.id, (msg) => {
+        if (msg.kind === 'invite' && msg.to === user.id) {
+          setInvite(msg);
+          try {
+            const el = document.getElementById('global-meeting-invite-audio') as HTMLAudioElement | null;
+            el?.play().catch(() => {});
+          } catch {}
+        }
+      });
+    })();
+    return () => {
+      try { unsub && unsub(); } catch {}
+    };
+  }, [user]);
 
   useEffect(() => {
     if (isMobile) {
@@ -55,9 +80,11 @@ export default function Layout({ children }: LayoutProps) {
         { name: 'Task Pool', href: '/admin/tasks/pool', icon: InboxIcon },
         { name: 'Employee Tracking', href: '/admin/tracking', icon: LocationMarkerIcon },
         { name: 'Location Management', href: '/admin/location', icon: MapIcon },
+        { name: 'Meetings', href: '/admin/meetings', icon: VideoCameraIcon },
         { name: 'Reports', href: '/admin/reports', icon: DocumentReportIcon },
         { name: 'Analytics', href: '/admin/analytics', icon: ChartBarIcon },
-        { name: 'Team', href: '/admin/team', icon: UserGroupIcon },
+        { name: 'Employee Management', href: '/admin/team', icon: UserGroupIcon },
+        { name: 'Permissions & Roles', href: '/admin/permissions', icon: ShieldCheckIcon },
         { name: 'Chat', href: '/admin/chat', icon: ChatIcon },
       ]
     : [
@@ -69,6 +96,10 @@ export default function Layout({ children }: LayoutProps) {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 via-gray-100 to-gray-200">
+      {/* Global meeting ringtone */}
+      {user?.role === 'employee' && (
+        <audio id="global-meeting-invite-audio" src="/ringtone.mp3" preload="auto" />
+      )}
       {/* Mobile header */}
       <div className="lg:hidden fixed top-0 left-0 right-0 z-20 bg-indigo-800 px-3 py-2 safe-top flex items-center justify-between shadow-lg">
         <div className="flex items-center">
@@ -181,6 +212,31 @@ export default function Layout({ children }: LayoutProps) {
           <div className="max-w-7xl mx-auto p-3 sm:p-4 md:p-6 lg:p-8 safe-bottom">
             {/* Content area with glass effect */}
             <div className="bg-white bg-opacity-90 backdrop-filter backdrop-blur-lg rounded-lg shadow-lg p-3 sm:p-4 md:p-6">
+              {/* Global meeting invite banner for employees */}
+              {user?.role === 'employee' && invite && (
+                <div className="mb-3 p-3 rounded-md border bg-yellow-50 flex flex-col sm:flex-row sm:items-center gap-2">
+                  <div className="text-sm font-medium text-yellow-900 flex-1">Incoming {invite.payload?.type || 'meeting'} invite</div>
+                  <div className="flex gap-2">
+                    <button
+                      className="px-3 py-1.5 rounded-md bg-green-600 text-white text-xs"
+                      onClick={() => {
+                        const type = invite.payload?.type || 'video';
+                        const mid = invite.meetingId;
+                        setInvite(null);
+                        navigate(`/employee?meetingId=${encodeURIComponent(mid)}&type=${encodeURIComponent(type)}`);
+                      }}
+                    >
+                      Accept
+                    </button>
+                    <button
+                      className="px-3 py-1.5 rounded-md bg-gray-200 text-xs"
+                      onClick={() => setInvite(null)}
+                    >
+                      Dismiss
+                    </button>
+                  </div>
+                </div>
+              )}
               {children}
             </div>
             {/* Powered by MIDIZ slogan */}

@@ -446,22 +446,22 @@ export default function LocationTaskInterface() {
       {/* Location-Required Tasks */}
       {locationRequiredTasks.length > 0 && (
         <div className="bg-white rounded-lg shadow">
-          <div className="px-6 py-4 border-b border-gray-200">
-            <h3 className="text-lg font-medium text-gray-900 flex items-center">
+          <div className="px-3 sm:px-6 py-3 sm:py-4 border-b border-gray-200">
+            <h3 className="text-base sm:text-lg font-medium text-gray-900 flex items-center">
               <MapIcon className="h-5 w-5 mr-2" />
               Location-Based Tasks
             </h3>
           </div>
           <div className="divide-y divide-gray-200">
             {locationRequiredTasks.map((task) => (
-              <div key={task.id} className="px-6 py-4">
-                <div className="flex items-center justify-between">
-                  <div className="flex-1">
+              <div key={task.id} className="px-3 sm:px-6 py-3 sm:py-4">
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                  <div className="flex-1 min-w-0">
                     <div className="flex items-center">
-                      <h4 className="text-lg font-medium text-gray-900">{task.title}</h4>
+                      <h4 className="text-base sm:text-lg font-medium text-gray-900 truncate">{task.title}</h4>
                       <div className="ml-2 flex items-center space-x-2">
                         {getLocationStatusIcon(task)}
-                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                        <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs sm:text-xs font-medium ${
                           task.status === 'Not Started' ? 'bg-gray-100 text-gray-800' :
                           task.status === 'In Progress' ? 'bg-blue-100 text-blue-800' :
                           task.status === 'Paused' ? 'bg-yellow-100 text-yellow-800' :
@@ -471,8 +471,8 @@ export default function LocationTaskInterface() {
                         </span>
                       </div>
                     </div>
-                    <p className="text-sm text-gray-600 mt-1">{task.description}</p>
-                    <div className="mt-2 flex items-center space-x-4 text-sm text-gray-500">
+                    <p className="text-xs sm:text-sm text-gray-600 mt-1 line-clamp-2">{task.description}</p>
+                    <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs sm:text-sm text-gray-500">
                       <span className="flex items-center">
                         <ClockIcon className="h-4 w-4 mr-1" />
                         Due: {new Date(task.due_date).toLocaleDateString()}
@@ -487,13 +487,13 @@ export default function LocationTaskInterface() {
                     </div>
                   </div>
                   
-                  <div className="ml-6 flex items-center space-x-2">
+                  <div className="sm:ml-6 flex items-center gap-2">
                     {task.location_required && (
                       <>
                         <button
                           onClick={() => handleCheckIn(task)}
                           disabled={checkingIn === task.id || !task.is_at_location}
-                          className="inline-flex items-center px-3 py-1.5 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                          className="inline-flex items-center px-3 py-1 border border-transparent text-xs sm:text-sm font-medium rounded-md shadow-sm text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 disabled:opacity-50 disabled:cursor-not-allowed touch-manipulation transform active:scale-95"
                         >
                           {checkingIn === task.id ? (
                             <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
@@ -506,7 +506,7 @@ export default function LocationTaskInterface() {
                         <button
                           onClick={() => handleCheckOut(task)}
                           disabled={checkingOut === task.id || task.status !== 'In Progress'}
-                          className="inline-flex items-center px-3 py-1.5 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-orange-600 hover:bg-orange-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-orange-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                          className="inline-flex items-center px-3 py-1 border border-transparent text-xs sm:text-sm font-medium rounded-md shadow-sm text-white bg-orange-600 hover:bg-orange-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-orange-500 disabled:opacity-50 disabled:cursor-not-allowed touch-manipulation transform active:scale-95"
                         >
                           {checkingOut === task.id ? (
                             <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
@@ -521,8 +521,8 @@ export default function LocationTaskInterface() {
                 </div>
                 
                 {!task.is_at_location && task.location_required && (
-                  <div className="mt-3 p-3 bg-orange-50 rounded-lg">
-                    <p className="text-sm text-orange-800">
+                  <div className="mt-3 p-2 sm:p-3 bg-orange-50 rounded-lg">
+                    <p className="text-xs sm:text-sm text-orange-800">
                       You need to be within {task.location_radius_meters}m of the task location to check in.
                       {task.distance_to_location && ` You are currently ${getDistanceText(task.distance_to_location)}.`}
                     </p>

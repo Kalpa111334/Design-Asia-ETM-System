@@ -2,7 +2,7 @@ import { supabase } from './supabase';
 
 export async function testConnection() {
   try {
-    const { data, error } = await supabase.from('users').select('count').single();
+    const { data, error } = await supabase.from('users').select('count');
     
     if (error) {
       console.error('Connection error:', error.message);

@@ -11,6 +11,7 @@ import {
   EyeOffIcon,
 } from '@heroicons/react/outline';
 import toast from 'react-hot-toast';
+import { AlertService } from '../../services/AlertService';
 
 interface GeofenceManagerProps {
   onGeofenceSelect?: (geofence: Geofence) => void;
@@ -55,6 +56,22 @@ export default function GeofenceManager({ onGeofenceSelect, selectedGeofenceId }
       return;
     }
 
+    // Validate form data
+    if (!formData.name.trim()) {
+      toast.error('Geofence name is required');
+      return;
+    }
+
+    if (formData.center_latitude === 0 && formData.center_longitude === 0) {
+      toast.error('Please set valid coordinates for the geofence');
+      return;
+    }
+
+    if (formData.radius_meters <= 0) {
+      toast.error('Radius must be greater than 0');
+      return;
+    }
+
     try {
       if (editingGeofence) {
         await GeofencingService.updateGeofence(editingGeofence.id, formData);
@@ -70,9 +87,27 @@ export default function GeofenceManager({ onGeofenceSelect, selectedGeofenceId }
       
       resetForm();
       fetchGeofences();
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error saving geofence:', error);
-      toast.error('Failed to save geofence');
+      
+      // Provide more specific error messages
+      let errorMessage = 'Failed to save geofence';
+      
+      if (error.message?.includes('Geofences table not found')) {
+        errorMessage = 'Database not set up. Please contact administrator.';
+      } else if (error.message?.includes('permission denied')) {
+        errorMessage = 'You do not have permission to create geofences';
+      } else if (error.message?.includes('foreign key constraint')) {
+        errorMessage = 'User account issue. Please try logging out and back in.';
+      } else if (error.message?.includes('User not found in database')) {
+        errorMessage = 'User account issue. Please try logging out and back in.';
+      } else if (error.message?.includes('Database error')) {
+        errorMessage = `Database error: ${error.message.split('Database error: ')[1]}`;
+      } else if (error.message) {
+        errorMessage = error.message;
+      }
+      
+      toast.error(errorMessage);
     }
   };
 
@@ -89,9 +124,14 @@ export default function GeofenceManager({ onGeofenceSelect, selectedGeofenceId }
   };
 
   const handleDelete = async (geofence: Geofence) => {
-    if (!confirm(`Are you sure you want to delete the geofence "${geofence.name}"?`)) {
-      return;
-    }
+    const confirmed = await AlertService.confirm({
+      title: 'Delete geofence?',
+      text: `Are you sure you want to delete the geofence "${geofence.name}"?`,
+      confirmText: 'Delete',
+      cancelText: 'Cancel',
+      icon: 'warning'
+    });
+    if (!confirmed) return;
 
     try {
       await GeofencingService.deleteGeofence(geofence.id);
@@ -159,11 +199,11 @@ export default function GeofenceManager({ onGeofenceSelect, selectedGeofenceId }
 
   return (
     <div className="space-y-6">
-      <div className="flex justify-between items-center">
+      <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 justify-between items-start sm:items-center">
         <h2 className="text-2xl font-bold text-gray-900">Geofence Management</h2>
         <button
           onClick={() => setIsCreating(true)}
-          className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+          className="w-full sm:w-auto inline-flex items-center justify-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
         >
           <PlusIcon className="h-5 w-5 mr-2" />
           Create Geofence
@@ -178,7 +218,7 @@ export default function GeofenceManager({ onGeofenceSelect, selectedGeofenceId }
           </h3>
           
           <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700">Name</label>
                 <input
@@ -349,9 +389,9 @@ export default function GeofenceManager({ onGeofenceSelect, selectedGeofenceId }
                     </button>
                     
                     <button
-                      onClick={(e) => {
+                      onClick={async (e) => {
                         e.stopPropagation();
-                        handleDelete(geofence);
+                        await handleDelete(geofence);
                       }}
                       className="inline-flex items-center p-2 border border-transparent rounded-md shadow-sm text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
                       title="Delete"

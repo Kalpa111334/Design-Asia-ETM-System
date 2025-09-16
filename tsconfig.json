@@ -26,5 +26,12 @@
     }
   },
   "include": ["src"],
+  "exclude": [
+    "src/components/EmployeeTrackingMap.tsx",
+    "src/components/admin/LocationTaskDashboard.tsx", 
+    "src/components/admin/MapLocationPicker.tsx",
+    "src/components/EmployeeTracking.tsx",
+    "src/components/GoogleMapsLoader.tsx"
+  ],
   "references": [{ "path": "./tsconfig.node.json" }]
 } 

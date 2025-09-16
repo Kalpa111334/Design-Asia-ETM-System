@@ -5,8 +5,10 @@ import { AuthProvider } from './contexts/AuthContext';
 import SplashScreen from './components/SplashScreen';
 import ErrorBoundary from './components/ErrorBoundary';
 import PrivateRoute from './components/PrivateRoute';
-import GoogleMapsLoader from './components/GoogleMapsLoader';
+import OpenStreetMapLoader from './components/OpenStreetMapLoader';
 import AppRoutes from './routes.tsx';
+import TaskAutoForwarder from './components/TaskAutoForwarder';
+import TaskStatusUpdater from './components/TaskStatusUpdater';
 
 // Admin Pages
 import AdminDashboard from './pages/admin/Dashboard';
@@ -38,10 +40,24 @@ export default function App() {
           {showSplash ? (
             <SplashScreen onFinish={() => setShowSplash(false)} />
           ) : (
-            <GoogleMapsLoader>
+            <OpenStreetMapLoader>
               <AppRoutes />
+              <TaskAutoForwarder />
+              <TaskStatusUpdater 
+                intervalMs={30000} // Update every 30 seconds
+                onStatusUpdate={(count) => {
+                  if (count > 0) {
+                    console.log(`Updated ${count} task statuses`);
+                  }
+                }}
+                onTimeCompletion={(count) => {
+                  if (count > 0) {
+                    console.log(`Auto-completed ${count} tasks based on time`);
+                  }
+                }}
+              />
               <Toaster position="top-right" />
-            </GoogleMapsLoader>
+            </OpenStreetMapLoader>
           )}
         </AuthProvider>
       </Router>

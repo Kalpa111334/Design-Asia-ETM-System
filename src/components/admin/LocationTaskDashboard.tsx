@@ -23,7 +23,7 @@ const mapContainerStyle = {
 };
 
 const center = {
-  lat: 7.8731,
+  lat: 7.8731, // Central Sri Lanka (Kandy area)
   lng: 80.7718, // Center of Sri Lanka
 };
 
@@ -31,13 +31,224 @@ const mapOptions = {
   disableDefaultUI: false,
   zoomControl: true,
   streetViewControl: false,
-  mapTypeControl: true,
+  mapTypeControl: false, // Disable for road-only view
   fullscreenControl: true,
+  minZoom: 16, // Higher minimum zoom to focus on roads
+  maxZoom: 25, // Ultra-high zoom for street-level detail
+  restriction: {
+    latLngBounds: {
+      north: 9.8317,  // Point Pedro (Northern tip)
+      south: 5.9169,  // Dondra Head (Southern tip)
+      west: 79.6951,  // Kalpitiya (Western coast)  
+      east: 81.8914,  // Sangamankanda Point (Eastern coast)
+    },
+    strictBounds: true, // Keep focus on Sri Lanka
+  },
   styles: [
+    // Beautiful modern map styling
     {
-      featureType: "poi",
-      elementType: "labels",
-      stylers: [{ visibility: "off" }],
+      featureType: 'all',
+      elementType: 'all',
+      stylers: [{ visibility: 'on' }],
+    },
+    // Beautiful landscape background
+    {
+      featureType: 'landscape',
+      elementType: 'geometry',
+      stylers: [
+        { visibility: 'on' },
+        { color: '#e3f2e3' },
+        { lightness: 10 }
+      ],
+    },
+    // Major highways - vibrant orange
+    {
+      featureType: 'road.highway',
+      elementType: 'geometry',
+      stylers: [
+        { visibility: 'on' },
+        { color: '#f97316' },
+        { weight: 8 },
+        { saturation: 100 }
+      ],
+    },
+    {
+      featureType: 'road.highway',
+      elementType: 'labels',
+      stylers: [
+        { visibility: 'on' },
+        { color: '#f97316' },
+        { weight: 'bold' },
+        { gamma: 1.5 }
+      ],
+    },
+    // Arterial roads - beautiful blue
+    {
+      featureType: 'road.arterial',
+      elementType: 'geometry',
+      stylers: [
+        { visibility: 'on' },
+        { color: '#2563eb' },
+        { weight: 6 },
+        { saturation: 80 }
+      ],
+    },
+    {
+      featureType: 'road.arterial',
+      elementType: 'labels',
+      stylers: [
+        { visibility: 'on' },
+        { color: '#2563eb' },
+        { weight: 'bold' }
+      ],
+    },
+    // Local roads - vibrant green
+    {
+      featureType: 'road.local',
+      elementType: 'geometry',
+      stylers: [
+        { visibility: 'on' },
+        { color: '#10b981' },
+        { weight: 4 },
+        { saturation: 60 }
+      ],
+    },
+    {
+      featureType: 'road.local',
+      elementType: 'labels',
+      stylers: [
+        { visibility: 'on' },
+        { color: '#10b981' }
+      ],
+    },
+    // Other roads - clean white
+    {
+      featureType: 'road',
+      elementType: 'geometry',
+      stylers: [
+        { visibility: 'on' },
+        { color: '#ffffff' },
+        { weight: 3 },
+        { gamma: 1.2 }
+      ],
+    },
+    {
+      featureType: 'road',
+      elementType: 'labels',
+      stylers: [
+        { visibility: 'on' },
+        { color: '#2563eb' },
+        { gamma: 1.5 }
+      ],
+    },
+    // Beautiful water features
+    {
+      featureType: 'water',
+      elementType: 'geometry',
+      stylers: [
+        { visibility: 'on' },
+        { color: '#40b3e7' },
+        { lightness: 20 }
+      ],
+    },
+    {
+      featureType: 'water',
+      elementType: 'labels',
+      stylers: [
+        { visibility: 'on' },
+        { color: '#ffffff' },
+        { weight: 'bold' }
+      ],
+    },
+    // Parks and natural features - vibrant green
+    {
+      featureType: 'poi.park',
+      elementType: 'geometry',
+      stylers: [
+        { visibility: 'on' },
+        { color: '#81c784' },
+        { lightness: 20 }
+      ],
+    },
+    {
+      featureType: 'poi.park',
+      elementType: 'labels',
+      stylers: [
+        { visibility: 'on' },
+        { color: '#2e7d32' },
+        { weight: 'bold' }
+      ],
+    },
+    // Hide unnecessary POIs
+    {
+      featureType: 'poi.business',
+      elementType: 'all',
+      stylers: [{ visibility: 'off' }],
+    },
+    {
+      featureType: 'poi.attraction',
+      elementType: 'all',
+      stylers: [{ visibility: 'off' }],
+    },
+    {
+      featureType: 'poi.government',
+      elementType: 'all',
+      stylers: [{ visibility: 'off' }],
+    },
+    {
+      featureType: 'poi.medical',
+      elementType: 'all',
+      stylers: [{ visibility: 'off' }],
+    },
+    {
+      featureType: 'poi.place_of_worship',
+      elementType: 'all',
+      stylers: [{ visibility: 'off' }],
+    },
+    {
+      featureType: 'poi.school',
+      elementType: 'all',
+      stylers: [{ visibility: 'off' }],
+    },
+    {
+      featureType: 'poi.sports_complex',
+      elementType: 'all',
+      stylers: [{ visibility: 'off' }],
+    },
+    // Hide transit
+    {
+      featureType: 'transit',
+      elementType: 'all',
+      stylers: [{ visibility: 'off' }],
+    },
+    // Beautiful country borders
+    {
+      featureType: 'administrative.country',
+      elementType: 'geometry.stroke',
+      stylers: [
+        { visibility: 'on' },
+        { color: '#ff9800' },
+        { weight: 2 }
+      ],
+    },
+    {
+      featureType: 'administrative.country',
+      elementType: 'labels',
+      stylers: [
+        { visibility: 'on' },
+        { color: '#e65100' },
+        { weight: 'bold' }
+      ],
+    },
+    // Province/state borders
+    {
+      featureType: 'administrative.province',
+      elementType: 'geometry.stroke',
+      stylers: [
+        { visibility: 'on' },
+        { color: '#ffb74d' },
+        { weight: 1 }
+      ],
     },
   ],
 };
@@ -91,9 +302,223 @@ export default function LocationTaskDashboard() {
   });
 
   const mapRef = useRef<google.maps.Map>();
+  const latestLocationsRef = useRef<EmployeeLocation[]>([]);
 
   const onMapLoad = useCallback((map: google.maps.Map) => {
     mapRef.current = map;
+    
+    // Set initial center and a balanced zoom for visibility
+    map.setCenter(center);
+    map.setZoom(16);
+
+    // Build a custom control panel (view + layers + overlays)
+    const controlDiv = document.createElement('div');
+    controlDiv.style.margin = '10px';
+    controlDiv.innerHTML = `
+      <div style="background: white; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); padding: 12px; display: flex; flex-direction: column; gap: 8px; min-width: 200px;">
+        <div style="display:flex; align-items:center; justify-content:space-between; gap:8px; font-size: 14px; font-weight: bold; color: #374151; margin-bottom: 8px;">
+          <span>🗺️ Map Controls</span>
+          <button id="dash-hide-controls" title="Hide controls" style="padding:6px 10px; border:none; background:#e5e7eb; color:#111827; border-radius:6px; cursor:pointer; font-size:12px; font-weight:600;">Hide</button>
+        </div>
+        <button id="dash-sri-lanka-view" style="padding: 10px 16px; border: none; background: linear-gradient(135deg, #3b82f6, #1d4ed8); color: white; border-radius: 8px; cursor: pointer; font-size: 12px; font-weight: 600;">🇱🇰 Sri Lanka View</button>
+        <button id="dash-reset-view" style="padding: 10px 16px; border: none; background: linear-gradient(135deg, #10b981, #059669); color: white; border-radius: 8px; cursor: pointer; font-size: 12px; font-weight: 600;">🔄 Reset View</button>
+        <div style="border-top: 1px solid #e5e7eb; margin: 8px 0; padding-top: 8px;">
+          <div style="font-size: 12px; font-weight: 600; color: #6b7280; margin-bottom: 6px;">Map Layers</div>
+          <button id="dash-toggle-traffic" style="padding: 8px 12px; border: none; background: linear-gradient(135deg, #f59e0b, #d97706); color: white; border-radius: 6px; cursor: pointer; font-size: 11px; font-weight: 500; width: 100%; margin-bottom: 4px;">🚦 Traffic Layer</button>
+          <button id="dash-toggle-transit" style="padding: 8px 12px; border: none; background: linear-gradient(135deg, #8b5cf6, #7c3aed); color: white; border-radius: 6px; cursor: pointer; font-size: 11px; font-weight: 500; width: 100%; margin-bottom: 4px;">🚌 Transit Lines</button>
+          <button id="dash-toggle-bicycling" style="padding: 8px 12px; border: none; background: linear-gradient(135deg, #06b6d4, #0891b2); color: white; border-radius: 6px; cursor: pointer; font-size: 11px; font-weight: 500; width: 100%;">🚴 Bicycle Paths</button>
+          <button id="dash-toggle-terrain" style="padding: 8px 12px; border: none; background: linear-gradient(135deg, #84cc16, #65a30d); color: white; border-radius: 6px; cursor: pointer; font-size: 11px; font-weight: 500; width: 100%; margin-top: 4px;">🏔️ Terrain</button>
+        </div>
+        <div style="border-top: 1px solid #e5e7eb; margin: 8px 0; padding-top: 8px;">
+          <div style="font-size: 12px; font-weight: 600; color: #6b7280; margin-bottom: 6px;">Overlays</div>
+          <button id="dash-toggle-heatmap" style="padding: 8px 12px; border: none; background: linear-gradient(135deg, #ef4444, #dc2626); color: white; border-radius: 6px; cursor: pointer; font-size: 11px; font-weight: 500; width: 100%; margin-bottom: 4px;">🔥 Heat Map</button>
+          <button id="dash-toggle-weather" style="padding: 8px 12px; border: none; background: linear-gradient(135deg, #0ea5e9, #0284c7); color: white; border-radius: 6px; cursor: pointer; font-size: 11px; font-weight: 500; width: 100%;">🌤️ Weather</button>
+        </div>
+      </div>
+    `;
+
+    // Hover effects
+    const buttons = controlDiv.querySelectorAll('button');
+    buttons.forEach((button) => {
+      button.addEventListener('mouseenter', () => {
+        (button as HTMLElement).style.transform = 'translateY(-2px)';
+        (button as HTMLElement).style.boxShadow = '0 6px 16px rgba(0,0,0,0.2)';
+      });
+      button.addEventListener('mouseleave', () => {
+        (button as HTMLElement).style.transform = 'translateY(0)';
+        (button as HTMLElement).style.boxShadow = 'none';
+      });
+    });
+
+    const sriLankaBtn = controlDiv.querySelector('#dash-sri-lanka-view') as HTMLElement;
+    sriLankaBtn.onclick = () => {
+      map.setCenter(center);
+      map.setZoom(8);
+    };
+
+    const resetBtn = controlDiv.querySelector('#dash-reset-view') as HTMLElement;
+    resetBtn.onclick = () => {
+      map.setCenter(center);
+      map.setZoom(16);
+    };
+
+    // Layers and Overlays
+    let trafficLayer: google.maps.TrafficLayer | null = null;
+    let transitLayer: google.maps.TransitLayer | null = null;
+    let bicyclingLayer: google.maps.BicyclingLayer | null = null;
+    let heatmapLayer: google.maps.visualization.HeatmapLayer | null = null;
+    let weatherCircles: google.maps.Circle[] = [];
+
+    const trafficBtn = controlDiv.querySelector('#dash-toggle-traffic') as HTMLElement;
+    trafficBtn.onclick = () => {
+      if (!trafficLayer) {
+        trafficLayer = new window.google.maps.TrafficLayer();
+        trafficLayer.setMap(map);
+        trafficBtn.innerHTML = '🚦 Hide Traffic';
+        (trafficBtn as HTMLElement).style.background = 'linear-gradient(135deg, #ef4444, #dc2626)';
+      } else {
+        trafficLayer.setMap(null);
+        trafficLayer = null;
+        trafficBtn.innerHTML = '🚦 Traffic Layer';
+        (trafficBtn as HTMLElement).style.background = 'linear-gradient(135deg, #f59e0b, #d97706)';
+      }
+    };
+
+    const heatmapBtn = controlDiv.querySelector('#dash-toggle-heatmap') as HTMLElement;
+    heatmapBtn.onclick = () => {
+      try {
+        if (!heatmapLayer) {
+          const pts = (latestLocationsRef.current || []).map(loc => ({
+            location: new window.google.maps.LatLng(loc.latitude, loc.longitude),
+            weight: 1,
+          }));
+          if (!('visualization' in window.google.maps)) {
+            toast.error('Heatmap library not available');
+            return;
+          }
+          heatmapLayer = new window.google.maps.visualization.HeatmapLayer({
+            data: pts,
+            radius: 48,
+            opacity: 0.6,
+          });
+          heatmapLayer.setMap(map);
+          heatmapBtn.innerHTML = '🔥 Hide Heat Map';
+          (heatmapBtn as HTMLElement).style.background = 'linear-gradient(135deg, #ef4444, #dc2626)';
+        } else {
+          heatmapLayer.setMap(null);
+          heatmapLayer = null;
+          heatmapBtn.innerHTML = '🔥 Heat Map';
+          (heatmapBtn as HTMLElement).style.background = 'linear-gradient(135deg, #ef4444, #dc2626)';
+        }
+      } catch {
+        toast.error('Unable to toggle heatmap');
+      }
+    };
+
+    const weatherBtn = controlDiv.querySelector('#dash-toggle-weather') as HTMLElement;
+    weatherBtn.onclick = () => {
+      if (weatherCircles.length === 0) {
+        const centers = [
+          { lat: 6.9271, lng: 79.8612 },
+          { lat: 7.2906, lng: 80.6337 },
+          { lat: 6.0535, lng: 80.2210 },
+        ];
+        weatherCircles = centers.map(c => new window.google.maps.Circle({
+          center: c,
+          radius: 20000,
+          strokeColor: '#0ea5e9',
+          strokeOpacity: 0,
+          strokeWeight: 0,
+          fillColor: '#0ea5e9',
+          fillOpacity: 0.15,
+          map,
+        }));
+        weatherBtn.innerHTML = '🌤️ Hide Weather';
+        (weatherBtn as HTMLElement).style.background = 'linear-gradient(135deg, #ef4444, #dc2626)';
+      } else {
+        weatherCircles.forEach(c => c.setMap(null));
+        weatherCircles = [];
+        weatherBtn.innerHTML = '🌤️ Weather';
+        (weatherBtn as HTMLElement).style.background = 'linear-gradient(135deg, #0ea5e9, #0284c7)';
+      }
+    };
+
+    const transitBtn = controlDiv.querySelector('#dash-toggle-transit') as HTMLElement;
+    transitBtn.onclick = () => {
+      if (!transitLayer) {
+        transitLayer = new window.google.maps.TransitLayer();
+        transitLayer.setMap(map);
+        transitBtn.innerHTML = '🚌 Hide Transit';
+        (transitBtn as HTMLElement).style.background = 'linear-gradient(135deg, #ef4444, #dc2626)';
+      } else {
+        transitLayer.setMap(null);
+        transitLayer = null;
+        transitBtn.innerHTML = '🚌 Transit Lines';
+        (transitBtn as HTMLElement).style.background = 'linear-gradient(135deg, #8b5cf6, #7c3aed)';
+      }
+    };
+
+    const bicyclingBtn = controlDiv.querySelector('#dash-toggle-bicycling') as HTMLElement;
+    bicyclingBtn.onclick = () => {
+      if (!bicyclingLayer) {
+        bicyclingLayer = new window.google.maps.BicyclingLayer();
+        bicyclingLayer.setMap(map);
+        bicyclingBtn.innerHTML = '🚴 Hide Bicycle';
+        (bicyclingBtn as HTMLElement).style.background = 'linear-gradient(135deg, #ef4444, #dc2626)';
+      } else {
+        bicyclingLayer.setMap(null);
+        bicyclingLayer = null;
+        bicyclingBtn.innerHTML = '🚴 Bicycle Paths';
+        (bicyclingBtn as HTMLElement).style.background = 'linear-gradient(135deg, #06b6d4, #0891b2)';
+      }
+    };
+
+    const terrainBtn = controlDiv.querySelector('#dash-toggle-terrain') as HTMLElement;
+    terrainBtn.onclick = () => {
+      if (map.getMapTypeId && map.getMapTypeId() !== 'terrain') {
+        map.setMapTypeId('terrain');
+        terrainBtn.innerHTML = '🏔️ Hide Terrain';
+        (terrainBtn as HTMLElement).style.background = 'linear-gradient(135deg, #ef4444, #dc2626)';
+      } else {
+        map.setMapTypeId('roadmap');
+        terrainBtn.innerHTML = '🏔️ Terrain';
+        (terrainBtn as HTMLElement).style.background = 'linear-gradient(135deg, #84cc16, #65a30d)';
+      }
+    };
+
+    map.controls[window.google.maps.ControlPosition.TOP_RIGHT].push(controlDiv);
+
+    // Hide/Show controls toggle
+    const hideBtn = controlDiv.querySelector('#dash-hide-controls') as HTMLElement;
+    let showBtn: HTMLDivElement | null = null;
+    hideBtn.onclick = () => {
+      (controlDiv.firstElementChild as HTMLElement).style.display = 'none';
+      controlDiv.style.display = 'none';
+      showBtn = document.createElement('div');
+      showBtn.style.margin = '10px';
+      showBtn.innerHTML = `
+        <div id="dash-show-controls" style="background: #111827; color: #ffffff; border-radius: 9999px; padding: 8px 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.2); cursor: pointer; font-size:12px; font-weight:600;">
+          Show Controls
+        </div>
+      `;
+      map.controls[window.google.maps.ControlPosition.TOP_RIGHT].push(showBtn);
+      const showBtnEl = showBtn.querySelector('#dash-show-controls') as HTMLElement;
+      showBtnEl.onclick = () => {
+        if (showBtn) {
+          const ctrls = map.controls[window.google.maps.ControlPosition.TOP_RIGHT];
+          for (let i = ctrls.getLength() - 1; i >= 0; i--) {
+            if (ctrls.getAt(i) === showBtn) {
+              ctrls.removeAt(i);
+              break;
+            }
+          }
+          showBtn = null;
+        }
+        controlDiv.style.display = 'block';
+      };
+    };
+
+    // Legend removed per user request
   }, []);
 
   const fetchData = useCallback(async () => {
@@ -139,6 +564,7 @@ export default function LocationTaskDashboard() {
       ]);
 
       setLocations(locationData);
+      latestLocationsRef.current = locationData;
       setGeofences(geofenceData);
 
       // Process tasks with geofence data when available
@@ -204,8 +630,8 @@ export default function LocationTaskDashboard() {
     fetchData();
     fetchAlerts();
     
-    // Set up real-time updates
-    const interval = setInterval(fetchData, 30000); // Update every 30 seconds
+    // DISABLED automatic updates to prevent continuous refreshing
+    // const interval = setInterval(fetchData, 30000);
 
     // Subscribe to location alerts
     const alertSubscription = supabase
@@ -224,10 +650,10 @@ export default function LocationTaskDashboard() {
       .subscribe();
 
     return () => {
-      clearInterval(interval);
+      // clearInterval(interval);
       alertSubscription.unsubscribe();
     };
-  }, [fetchData, fetchAlerts]);
+  }, []); // Empty dependency array to run only once on mount
 
   const handleMapClick = useCallback((event: google.maps.MapMouseEvent) => {
     if (isCreatingGeofence && event.latLng) {
@@ -484,7 +910,7 @@ export default function LocationTaskDashboard() {
       <div className="bg-white rounded-lg shadow overflow-hidden">
         <GoogleMap
           mapContainerStyle={mapContainerStyle}
-          zoom={18}
+          zoom={16}
           center={center}
           options={mapOptions}
           onLoad={onMapLoad}
@@ -500,13 +926,35 @@ export default function LocationTaskDashboard() {
               }}
               icon={{
                 url: `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(`
-                  <svg width="40" height="40" viewBox="0 0 40 40" xmlns="http://www.w3.org/2000/svg">
-                    <circle cx="20" cy="20" r="18" fill="${getEmployeeStatusColor(location)}" stroke="white" stroke-width="3"/>
-                    <circle cx="20" cy="20" r="8" fill="white"/>
+                  <svg width="56" height="56" viewBox="0 0 56 56" xmlns="http://www.w3.org/2000/svg">
+                    <defs>
+                      <filter id="glow" x="-50%" y="-50%" width="200%" height="200%">
+                        <feGaussianBlur stdDeviation="4" result="coloredBlur"/>
+                        <feMerge> 
+                          <feMergeNode in="coloredBlur"/>
+                          <feMergeNode in="SourceGraphic"/>
+                        </feMerge>
+                      </filter>
+                      <filter id="shadow" x="-50%" y="-50%" width="200%" height="200%">
+                        <feDropShadow dx="2" dy="4" stdDeviation="3" flood-color="rgba(0,0,0,0.3)"/>
+                      </filter>
+                      <linearGradient id="markerGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                        <stop offset="0%" style="stop-color:#ff4444;stop-opacity:1" />
+                        <stop offset="100%" style="stop-color:#cc0000;stop-opacity:1" />
+                      </linearGradient>
+                    </defs>
+                    <!-- Outer glow ring -->
+                    <circle cx="28" cy="28" r="26" fill="#ff0000" opacity="0.2" filter="url(#glow)"/>
+                    <!-- Main marker with gradient -->
+                    <circle cx="28" cy="28" r="20" fill="url(#markerGradient)" stroke="white" stroke-width="4" filter="url(#shadow)"/>
+                    <!-- Inner white circle -->
+                    <circle cx="28" cy="28" r="12" fill="white" opacity="0.9"/>
+                    <!-- Enhanced status indicator -->
+                    <circle cx="42" cy="14" r="8" fill="${getEmployeeStatusColor(location)}" stroke="white" stroke-width="3" filter="url(#shadow)"/>
                   </svg>
                 `)}`,
-                scaledSize: new window.google.maps.Size(40, 40),
-                anchor: new window.google.maps.Point(20, 20),
+                scaledSize: new window.google.maps.Size(56, 56),
+                anchor: new window.google.maps.Point(28, 28),
               }}
               onClick={() => setSelectedLocation(location)}
             />

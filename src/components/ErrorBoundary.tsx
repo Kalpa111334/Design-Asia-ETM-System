@@ -26,13 +26,13 @@ class ErrorBoundary extends Component<Props, State> {
   public render() {
     if (this.state.hasError) {
       return (
-        <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-red-50 via-red-100 to-red-200">
-          <div className="max-w-md w-full space-y-8 p-8 bg-white bg-opacity-90 backdrop-filter backdrop-blur-lg rounded-lg shadow-xl">
-            <h1 className="text-2xl font-bold text-red-600 text-center">Something went wrong</h1>
-            <p className="text-gray-600 text-center">{this.state.error?.message}</p>
+        <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-red-50 via-red-100 to-red-200 p-4">
+          <div className="max-w-md w-full space-y-6 sm:space-y-8 p-4 sm:p-8 bg-white bg-opacity-90 backdrop-filter backdrop-blur-lg rounded-lg shadow-xl">
+            <h1 className="text-xl sm:text-2xl font-bold text-red-600 text-center">Something went wrong</h1>
+            <p className="text-sm sm:text-base text-gray-600 text-center break-words">{this.state.error?.message}</p>
             <button
               onClick={() => window.location.reload()}
-              className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
+              className="w-full flex justify-center py-3 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 touch-manipulation transform active:scale-95 transition-transform"
             >
               Reload page
             </button>

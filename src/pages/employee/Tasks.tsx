@@ -3,9 +3,33 @@ import Layout from '../../components/Layout';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../contexts/AuthContext';
 import { Task } from '../../types/index';
+import { withPermission } from '../../components/withPermission';
+
+// Helper function to parse interval string to milliseconds
+function parseIntervalToMs(intervalStr: string | number | null | undefined): number {
+  if (!intervalStr) return 0;
+  if (typeof intervalStr === 'number') return intervalStr; // Handle legacy number format
+  if (typeof intervalStr === 'string') {
+    // Parse PostgreSQL interval format like "123 seconds" or "1:23:45"
+    const match = intervalStr.match(/(\d+)\s*seconds?/);
+    if (match) return parseInt(match[1]) * 1000;
+    
+    // Handle HH:MM:SS format
+    const timeMatch = intervalStr.match(/(\d+):(\d+):(\d+)/);
+    if (timeMatch) {
+      const hours = parseInt(timeMatch[1]);
+      const minutes = parseInt(timeMatch[2]);
+      const seconds = parseInt(timeMatch[3]);
+      return (hours * 3600 + minutes * 60 + seconds) * 1000;
+    }
+  }
+  return 0;
+}
 import TaskSubmissionWithProof from '../../components/TaskSubmissionWithProof';
 import TaskCountdown from '../../components/TaskCountdown';
 import DeleteTaskModal from '../../components/DeleteTaskModal';
+import AttachmentDisplay from '../../components/AttachmentDisplay';
+import TaskAttachmentModal from '../../components/TaskAttachmentModal';
 import toast from 'react-hot-toast';
 import { formatCurrency } from '../../utils/currency';
 import {
@@ -17,10 +41,11 @@ import {
   CalendarIcon,
   PhotographIcon,
   CheckCircleIcon,
-  TrashIcon
+  TrashIcon,
+  EyeIcon
 } from '@heroicons/react/outline';
 
-export default function Tasks() {
+function Tasks() {
   const { user } = useAuth();
   const [tasks, setTasks] = useState<Task[]>([]);
   const [loading, setLoading] = useState(true);
@@ -28,6 +53,7 @@ export default function Tasks() {
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
   const [showSubmissionForm, setShowSubmissionForm] = useState(false);
   const [taskToDelete, setTaskToDelete] = useState<Task | null>(null);
+  const [showAttachments, setShowAttachments] = useState<Task | null>(null);
 
   useEffect(() => {
     fetchTasks();
@@ -35,23 +61,120 @@ export default function Tasks() {
 
   async function fetchTasks() {
     try {
-      const { data, error } = await supabase
+      if (!user) {
+        console.log('No user found, skipping task fetch');
+        setLoading(false);
+        return;
+      }
+
+      // First, try the original query
+      let { data, error } = await supabase
         .from('tasks')
-        .select('*, task_proofs(status)')
-        .eq('assigned_to', user?.id)
+        .select('*, task_proofs(status), task_attachments(*)')
+        .eq('assigned_to', user.id)
         .order('created_at', { ascending: false });
 
-      if (error) throw error;
+      // If that fails or returns no attachments, try a different approach
+      if (error || !data || data.length === 0) {
+        console.log('🔍 DEBUG: Original query failed or returned no data, trying alternative query...');
+        
+        // Try fetching tasks and attachments separately
+        const { data: tasksData, error: tasksError } = await supabase
+          .from('tasks')
+          .select('*')
+          .eq('assigned_to', user.id)
+          .order('created_at', { ascending: false });
+
+        if (tasksError) {
+          throw tasksError;
+        }
+
+        // Fetch attachments for each task
+        const tasksWithAttachments = await Promise.all(
+          (tasksData || []).map(async (task) => {
+            const { data: attachments, error: attachmentsError } = await supabase
+              .from('task_attachments')
+              .select('*')
+              .eq('task_id', task.id);
+
+            if (attachmentsError) {
+              console.error('Error fetching attachments for task:', task.id, attachmentsError);
+            }
+
+            return {
+              ...task,
+              task_attachments: attachments || [],
+              task_proofs: [] // We'll fetch this separately if needed
+            };
+          })
+        );
+
+        data = tasksWithAttachments;
+        error = null;
+      }
+
+      if (error) {
+        console.error('Supabase error fetching tasks:', error);
+        throw new Error(`Database error: ${error.message}`);
+      }
       
       const processedTasks = (data || []).map(task => ({
         ...task,
         hasApprovedProof: task.task_proofs?.some((proof: any) => proof.status === 'Approved')
       }));
       
+      // Debug: Log task attachments
+      console.log('🔍 DEBUG: Tasks fetched:', processedTasks.length);
+      console.log('🔍 DEBUG: Current user ID:', user?.id);
+      console.log('🔍 DEBUG: Tasks with attachments:', processedTasks.filter(task => task.task_attachments && task.task_attachments.length > 0));
+      
+      processedTasks.forEach((task, index) => {
+        console.log(`🔍 DEBUG: Task ${index + 1} (${task.title}):`, {
+          id: task.id,
+          assigned_to: task.assigned_to,
+          isAssignedToCurrentUser: task.assigned_to === user?.id,
+          attachments: task.task_attachments,
+          attachmentCount: task.task_attachments?.length || 0,
+          attachmentDetails: task.task_attachments?.map(att => ({
+            id: att.id,
+            file_name: att.file_name,
+            file_type: att.file_type,
+            file_url: att.file_url
+          }))
+        });
+      });
+      
+      // Test direct attachment query
+      console.log('🔍 DEBUG: Testing direct attachment query...');
+      const { data: directAttachments, error: directError } = await supabase
+        .from('task_attachments')
+        .select('*')
+        .limit(5);
+      
+      console.log('🔍 DEBUG: Direct attachment query result:', {
+        error: directError,
+        count: directAttachments?.length || 0,
+        sample: directAttachments?.[0]
+      });
+      
       setTasks(processedTasks);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error fetching tasks:', error);
-      toast.error('Failed to fetch tasks');
+      
+      // Provide more specific error messages
+      let errorMessage = 'Failed to fetch tasks';
+      
+      if (error.message?.includes('relation "tasks" does not exist')) {
+        errorMessage = 'Tasks table not found. Please run database migrations.';
+      } else if (error.message?.includes('permission denied')) {
+        errorMessage = 'Permission denied. Please check your access rights.';
+      } else if (error.message?.includes('Database error')) {
+        errorMessage = `Database error: ${error.message.split('Database error: ')[1]}`;
+      } else if (error.message) {
+        errorMessage = error.message;
+      }
+      
+      toast.error(errorMessage);
     } finally {
       setLoading(false);
     }
@@ -84,7 +207,8 @@ export default function Tasks() {
         } else if (task.last_pause_at) {
           // Calculate additional pause duration if resuming
           const pauseDuration = Math.max(0, new Date(now).getTime() - new Date(task.last_pause_at).getTime());
-          updates.total_pause_duration = Math.floor((task.total_pause_duration || 0) + pauseDuration);
+          const currentPauseMs = parseIntervalToMs(task.total_pause_duration);
+          updates.total_pause_duration = `${Math.floor((currentPauseMs + pauseDuration) / 1000)} seconds`;
           updates.last_pause_at = null;
         }
       } else if (newStatus === 'Paused') {
@@ -165,7 +289,8 @@ export default function Tasks() {
 
         if (task.last_pause_at) {
           const pauseDuration = new Date(now).getTime() - new Date(task.last_pause_at).getTime();
-          updates.total_pause_duration = (task.total_pause_duration || 0) + pauseDuration;
+          const currentPauseMs = parseIntervalToMs(task.total_pause_duration);
+          updates.total_pause_duration = `${Math.floor((currentPauseMs + pauseDuration) / 1000)} seconds`;
         }
 
         const { error: taskError } = await supabase
@@ -206,7 +331,7 @@ export default function Tasks() {
   };
 
   const filteredTasks = tasks.filter(task => {
-    if (filter === 'active') return task.status !== 'Completed' || !task.hasApprovedProof;
+    if (filter === 'active') return (task.status !== 'Completed' || !task.hasApprovedProof) && task.status !== 'Planned';
     if (filter === 'completed') return task.status === 'Completed' && task.hasApprovedProof;
     return true;
   });
@@ -216,6 +341,8 @@ export default function Tasks() {
       return 'bg-green-100 text-green-800';
     }
     switch (status) {
+      case 'Planned':
+        return 'bg-blue-100 text-blue-800';
       case 'Not Started':
         return 'bg-gray-100 text-gray-800';
       case 'In Progress':
@@ -224,6 +351,8 @@ export default function Tasks() {
         return 'bg-yellow-100 text-yellow-800';
       case 'Completed':
         return 'bg-yellow-100 text-yellow-800'; // Pending approval
+      case 'Pending':
+        return 'bg-orange-100 text-orange-800';
       default:
         return 'bg-gray-100 text-gray-800';
     }
@@ -238,22 +367,22 @@ export default function Tasks() {
 
   return (
     <Layout>
-      <div className="px-4 sm:px-6 lg:px-8">
+      <div className="px-2 sm:px-4 md:px-6 lg:px-8">
         <div className="sm:flex sm:items-center">
           <div className="sm:flex-auto">
-            <h1 className="text-3xl font-semibold text-gray-900">My Tasks</h1>
-            <p className="mt-2 text-sm text-gray-700">
+            <h1 className="text-xl sm:text-3xl font-semibold text-gray-900">My Tasks</h1>
+            <p className="mt-1 sm:mt-2 text-sm text-gray-700">
               A list of all your assigned tasks and their current status.
             </p>
           </div>
         </div>
 
-        <div className="mt-6 bg-white rounded-lg shadow">
-          <div className="p-4 border-b border-gray-200">
-            <div className="flex space-x-4">
+        <div className="mt-4 sm:mt-6 bg-white rounded-lg shadow">
+          <div className="p-3 sm:p-4 border-b border-gray-200">
+            <div className="flex flex-wrap gap-2 sm:gap-3">
               <button
                 onClick={() => setFilter('all')}
-                className={`px-4 py-2 text-sm font-medium rounded-md ${
+                className={`w-full sm:w-auto px-4 py-2 text-sm font-medium rounded-md touch-manipulation transform active:scale-95 transition-transform ${
                   filter === 'all'
                     ? 'bg-pink-100 text-pink-700'
                     : 'text-gray-500 hover:text-gray-700'
@@ -263,7 +392,7 @@ export default function Tasks() {
               </button>
               <button
                 onClick={() => setFilter('active')}
-                className={`px-4 py-2 text-sm font-medium rounded-md ${
+                className={`w-full sm:w-auto px-4 py-2 text-sm font-medium rounded-md touch-manipulation transform active:scale-95 transition-transform ${
                   filter === 'active'
                     ? 'bg-pink-100 text-pink-700'
                     : 'text-gray-500 hover:text-gray-700'
@@ -273,7 +402,7 @@ export default function Tasks() {
               </button>
               <button
                 onClick={() => setFilter('completed')}
-                className={`px-4 py-2 text-sm font-medium rounded-md ${
+                className={`w-full sm:w-auto px-4 py-2 text-sm font-medium rounded-md touch-manipulation transform active:scale-95 transition-transform ${
                   filter === 'completed'
                     ? 'bg-pink-100 text-pink-700'
                     : 'text-gray-500 hover:text-gray-700'
@@ -293,21 +422,21 @@ export default function Tasks() {
               <p className="text-gray-500">No tasks found</p>
             </div>
           ) : (
-            <div className="overflow-hidden">
+            <div className="overflow-x-auto">
               <ul role="list" className="divide-y divide-gray-200">
                 {filteredTasks.map((task) => (
-                  <li key={task.id} className="p-4 sm:p-6">
-                    <div className="flex items-center justify-between flex-wrap gap-4">
+                  <li key={task.id} className="px-3 sm:px-4 py-4">
+                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                       <div className="flex-1 min-w-0">
-                        <h3 className="text-lg font-medium text-gray-900">{task.title}</h3>
-                        <p className="mt-1 text-sm text-gray-500">{task.description}</p>
-                        <div className="mt-2 flex flex-wrap gap-4">
-                          <div className="flex items-center text-sm text-gray-500">
-                            <CalendarIcon className="mr-1.5 h-5 w-5 flex-shrink-0 text-gray-400" />
+                        <h3 className="text-base sm:text-lg font-medium text-gray-900 truncate">{task.title}</h3>
+                        <p className="mt-1 text-xs sm:text-sm text-gray-500 line-clamp-2">{task.description}</p>
+                        <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1">
+                          <div className="flex items-center text-xs sm:text-sm text-gray-500">
+                            <CalendarIcon className="mr-1.5 h-4 w-4 sm:h-5 sm:w-5 flex-shrink-0 text-gray-400" />
                             Due: {new Date(task.due_date).toLocaleDateString()}
                           </div>
-                          <div className="flex items-center text-sm text-gray-500">
-                            <CurrencyDollarIcon className="mr-1.5 h-5 w-5 flex-shrink-0 text-gray-400" />
+                          <div className="flex items-center text-xs sm:text-sm text-gray-500">
+                            <CurrencyDollarIcon className="mr-1.5 h-4 w-4 sm:h-5 sm:w-5 flex-shrink-0 text-gray-400" />
                             {formatCurrency(task.price)}
                           </div>
                           <div className="flex items-center">
@@ -316,16 +445,32 @@ export default function Tasks() {
                         </div>
                       </div>
                       <div className="flex flex-col sm:flex-row gap-2 items-end sm:items-center">
-                        <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${getStatusColor(task.status, task.hasApprovedProof)}`}>
+                        <span className={`inline-flex items-center px-2.5 sm:px-3 py-0.5 sm:py-1 rounded-full text-xs sm:text-sm font-medium ${getStatusColor(task.status, task.hasApprovedProof)}`}>
                           {getStatusText(task.status, task.hasApprovedProof)}
                         </span>
                         <div className="flex gap-2">
-                          {task.status !== 'Completed' && (
+                          {/* View Attachments Button */}
+                          <button
+                            onClick={() => setShowAttachments(task)}
+                            className="inline-flex items-center px-2 py-1 border border-gray-300 text-xs sm:text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 touch-manipulation transform active:scale-95"
+                            aria-label="View attachments"
+                            title={task.task_attachments && task.task_attachments.length > 0 
+                              ? `View ${task.task_attachments.length} attachment${task.task_attachments.length > 1 ? 's' : ''}`
+                              : 'View attachments'
+                            }
+                          >
+                            <EyeIcon className="h-4 w-4" />
+                            <span className="ml-1 hidden sm:inline">
+                              {task.task_attachments ? task.task_attachments.length : '0'}
+                            </span>
+                          </button>
+                          
+                          {task.status !== 'Completed' && task.status !== 'Planned' && (
                             <>
                               {task.status === 'In Progress' ? (
                                 <button
                                   onClick={() => updateTaskStatus(task.id, 'Paused')}
-                                  className="inline-flex items-center px-3 py-1.5 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-yellow-600 hover:bg-yellow-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-yellow-500"
+                                  className="inline-flex items-center px-3 py-1 border border-transparent text-xs sm:text-sm font-medium rounded-md shadow-sm text-white bg-yellow-600 hover:bg-yellow-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-yellow-500 touch-manipulation transform active:scale-95"
                                 >
                                   <PauseIcon className="h-4 w-4 mr-1" />
                                   Pause
@@ -333,16 +478,16 @@ export default function Tasks() {
                               ) : (
                                 <button
                                   onClick={() => updateTaskStatus(task.id, 'In Progress')}
-                                  className="inline-flex items-center px-3 py-1.5 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                                  className="inline-flex items-center px-3 py-1 border border-transparent text-xs sm:text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 touch-manipulation transform active:scale-95"
                                 >
                                   <PlayIcon className="h-4 w-4 mr-1" />
                                   {task.status === 'Paused' ? 'Resume' : 'Start'}
                                 </button>
                               )}
-                              {task.status !== 'Not Started' && (
+                              {(task.status === 'In Progress' || task.status === 'Paused') && (
                                 <button
                                   onClick={() => handleCompleteClick(task)}
-                                  className="inline-flex items-center px-3 py-1.5 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
+                                  className="inline-flex items-center px-3 py-1 border border-transparent text-xs sm:text-sm font-medium rounded-md shadow-sm text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 touch-manipulation transform active:scale-95"
                                 >
                                   <CheckIcon className="h-4 w-4 mr-1" />
                                   Complete
@@ -352,7 +497,7 @@ export default function Tasks() {
                           )}
                           <button
                             onClick={() => setTaskToDelete(task)}
-                            className="inline-flex items-center px-2 py-1.5 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+                            className="inline-flex items-center px-2 py-1 border border-gray-300 text-xs sm:text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 touch-manipulation transform active:scale-95"
                             aria-label="Delete task"
                           >
                             <TrashIcon className="h-4 w-4" />
@@ -393,6 +538,19 @@ export default function Tasks() {
           taskTitle={taskToDelete.title}
         />
       )}
+
+      {/* View Attachments Modal */}
+      <TaskAttachmentModal
+        isOpen={!!showAttachments}
+        onClose={() => setShowAttachments(null)}
+        task={showAttachments}
+      />
     </Layout>
   );
-} 
+}
+
+export default withPermission(Tasks, {
+  pageName: 'tasks',
+  requiredPermission: 'view',
+  showPermissionIndicator: true
+}); 

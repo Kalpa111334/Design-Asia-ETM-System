@@ -17,31 +17,98 @@ export interface EnhancedLocationData {
 export class EnhancedLocationService extends LocationService {
   static async getEmployeeLocations(): Promise<any[]> {
     try {
-      // Use secure RPC that applies RLS correctly and joins user/task fields
-      const { data, error } = await supabase.rpc('get_latest_employee_locations');
-
-      if (error) {
-        throw error;
+      // First try the RPC function
+      const { data: rpcData, error: rpcError } = await supabase.rpc('get_latest_employee_locations');
+      
+      if (!rpcError && rpcData && rpcData.length > 0) {
+        // Use RPC data if available
+        return rpcData.map((row: any) => ({
+          id: row.id,
+          user_id: row.user_id,
+          latitude: row.latitude,
+          longitude: row.longitude,
+          timestamp: row.recorded_at || row.timestamp,
+          battery_level: row.battery_level,
+          connection_status: row.connection_status,
+          location_accuracy: row.location_accuracy,
+          task_id: row.task_id,
+          users: {
+            full_name: row.full_name || row.email?.split('@')[0] || `User ${row.user_id.slice(0, 8)}`,
+            avatar_url: row.avatar_url ?? null,
+          },
+        }));
       }
 
-      const rows = data || [];
+      // Fallback: Direct query with manual user joining
+      const { data: locations, error: locationError } = await supabase
+        .from('employee_locations')
+        .select('*')
+        .order('timestamp', { ascending: false });
 
-      // Normalize to the shape expected by components
-      return rows.map((row: any) => ({
-        id: row.id,
-        user_id: row.user_id,
-        latitude: row.latitude,
-        longitude: row.longitude,
-        timestamp: row.recorded_at || row.timestamp,
-        battery_level: row.battery_level,
-        connection_status: row.connection_status,
-        location_accuracy: row.location_accuracy,
-        task_id: row.task_id,
-        users: {
-          full_name: row.full_name ?? 'Unknown User',
-          avatar_url: row.avatar_url ?? null,
-        },
-      }));
+      if (locationError) {
+        console.warn('Error fetching locations:', locationError);
+        return [];
+      }
+
+      // Get all unique user IDs
+      const userIds = [...new Set(locations?.map(loc => loc.user_id) || [])];
+      
+      // Fetch user data from both tables
+      const { data: publicUsers } = await supabase
+        .from('users')
+        .select('id, full_name, email, avatar_url')
+        .in('id', userIds);
+
+      // Try to get current user's auth data as a fallback
+      const { data: { user: currentUser } } = await supabase.auth.getUser();
+      const authUsersMap = new Map();
+      
+      if (currentUser) {
+        authUsersMap.set(currentUser.id, {
+          full_name: currentUser.user_metadata?.full_name,
+          email: currentUser.email
+        });
+      }
+
+      const publicUsersMap = new Map(publicUsers?.map(user => [user.id, user]) || []);
+
+      // Combine location data with user data
+      return locations?.map((location: any) => {
+        const publicUser = publicUsersMap.get(location.user_id);
+        const authUser = authUsersMap.get(location.user_id);
+        
+        let fullName = 'Unknown Employee';
+        let email = '';
+        
+        if (publicUser?.full_name) {
+          fullName = publicUser.full_name;
+          email = publicUser.email || '';
+        } else if (authUser?.full_name) {
+          fullName = authUser.full_name;
+          email = authUser.email || '';
+        } else if (authUser?.email) {
+          fullName = authUser.email.split('@')[0];
+          email = authUser.email;
+        } else {
+          fullName = `User ${location.user_id.slice(0, 8)}`;
+        }
+
+        return {
+          id: location.id,
+          user_id: location.user_id,
+          latitude: location.latitude,
+          longitude: location.longitude,
+          timestamp: location.timestamp,
+          battery_level: location.battery_level,
+          connection_status: location.connection_status,
+          location_accuracy: location.location_accuracy,
+          task_id: location.task_id,
+          users: {
+            full_name: fullName,
+            avatar_url: publicUser?.avatar_url ?? null,
+          },
+        };
+      }) || [];
     } catch (error) {
       console.error('Error in getEmployeeLocations:', error);
       throw error;
@@ -94,7 +161,10 @@ export class EnhancedLocationService extends LocationService {
 
       return {
         ...location,
-        users: user || { full_name: 'Unknown User', avatar_url: null },
+        users: user || { 
+          full_name: `User ${userId.slice(0, 8)}`, 
+          avatar_url: null 
+        },
         tasks: taskData
       };
     } catch (error) {
@@ -139,7 +209,10 @@ export class EnhancedLocationService extends LocationService {
       // Attach user data to locations
       return locations.map(location => ({
         ...location,
-        users: userMap.get(location.user_id) || { full_name: 'Unknown User', avatar_url: null }
+        users: userMap.get(location.user_id) || { 
+          full_name: `User ${location.user_id.slice(0, 8)}`, 
+          avatar_url: null 
+        }
       }));
     } catch (error) {
       console.error('Error in getEmployeeLocationsByTask:', error);
@@ -248,7 +321,7 @@ export class EnhancedLocationService extends LocationService {
         const userData = userMap.get(userId);
         if (!analytics.userActivity[userId]) {
           analytics.userActivity[userId] = {
-            name: userData?.full_name || 'Unknown User',
+            name: userData?.full_name || `User ${userId.slice(0, 8)}`,
             count: 0,
             lastSeen: location.timestamp,
           };

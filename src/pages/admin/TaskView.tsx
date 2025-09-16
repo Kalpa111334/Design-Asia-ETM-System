@@ -3,21 +3,10 @@ import { useParams, useNavigate } from 'react-router-dom';
 import Layout from '../../components/Layout';
 import TaskProofView from '../../components/TaskProofView';
 import { supabase } from '../../lib/supabase';
-import { Task, User } from '../../types/index';
-import { ArrowLeftIcon, PhotographIcon } from '@heroicons/react/outline';
+import { Task, User, TaskProof } from '../../types/index';
+import { ArrowLeftIcon } from '@heroicons/react/outline';
 import toast from 'react-hot-toast';
 import { formatCurrency } from '../../utils/currency';
-
-interface TaskProof {
-  id: number;
-  task_id: string;
-  image_url: string;
-  description: string;
-  submitted_by: string;
-  created_at: string;
-  status: 'Pending' | 'Approved' | 'Rejected';
-  rejection_reason?: string;
-}
 
 export default function TaskView() {
   const { taskId } = useParams<{ taskId: string }>();
@@ -26,8 +15,6 @@ export default function TaskView() {
   const [assignedUser, setAssignedUser] = useState<User | null>(null);
   const [proofs, setProofs] = useState<TaskProof[]>([]);
   const [loading, setLoading] = useState(true);
-  const [selectedProof, setSelectedProof] = useState<TaskProof | null>(null);
-  const [isProofModalOpen, setIsProofModalOpen] = useState(false);
 
   useEffect(() => {
     if (taskId) {
@@ -76,9 +63,51 @@ export default function TaskView() {
     }
   }
 
-  const handleProofClick = (proof: TaskProof) => {
-    setSelectedProof(proof);
-    setIsProofModalOpen(true);
+
+  const handleApproveProof = async (proofId: string) => {
+    try {
+      const { error } = await supabase
+        .from('task_proofs')
+        .update({
+          status: 'Approved',
+          reviewed_by: (await supabase.auth.getUser()).data.user?.id,
+          reviewed_at: new Date().toISOString()
+        })
+        .eq('id', proofId);
+
+      if (error) throw error;
+
+      toast.success('Proof approved successfully');
+      fetchTaskDetails(); // Refresh the data
+    } catch (error) {
+      console.error('Error approving proof:', error);
+      toast.error('Failed to approve proof');
+    }
+  };
+
+  const handleRejectProof = async (proofId: string) => {
+    try {
+      const rejectionReason = prompt('Please provide a reason for rejection:');
+      if (!rejectionReason) return;
+
+      const { error } = await supabase
+        .from('task_proofs')
+        .update({
+          status: 'Rejected',
+          reviewed_by: (await supabase.auth.getUser()).data.user?.id,
+          reviewed_at: new Date().toISOString(),
+          rejection_reason: rejectionReason
+        })
+        .eq('id', proofId);
+
+      if (error) throw error;
+
+      toast.success('Proof rejected successfully');
+      fetchTaskDetails(); // Refresh the data
+    } catch (error) {
+      console.error('Error rejecting proof:', error);
+      toast.error('Failed to reject proof');
+    }
   };
 
   const getStatusColor = (status: string) => {
@@ -118,11 +147,11 @@ export default function TaskView() {
 
   return (
     <Layout>
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="mb-6">
+      <div className="max-w-7xl mx-auto px-2 sm:px-4 md:px-6 lg:px-8">
+        <div className="mb-4 sm:mb-6">
           <button
             onClick={() => navigate('/admin/tasks')}
-            className="inline-flex items-center text-gray-600 hover:text-gray-900"
+            className="inline-flex items-center text-gray-600 hover:text-gray-900 touch-manipulation transform active:scale-95 transition-transform"
           >
             <ArrowLeftIcon className="h-5 w-5 mr-2" />
             Back to Tasks
@@ -131,7 +160,7 @@ export default function TaskView() {
 
         <div className="bg-white shadow overflow-hidden sm:rounded-lg">
           <div className="px-4 py-5 sm:px-6">
-            <div className="flex justify-between items-center">
+            <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 justify-between items-start sm:items-center">
               <h3 className="text-lg leading-6 font-medium text-gray-900">
                 Task Details
               </h3>
@@ -176,67 +205,12 @@ export default function TaskView() {
           </div>
         </div>
 
-        <div className="mt-8">
-          <h3 className="text-lg leading-6 font-medium text-gray-900 mb-4">
-            Task Proofs
-          </h3>
-          {proofs.length === 0 ? (
-            <p className="text-gray-500">No proofs submitted yet</p>
-          ) : (
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-              {proofs.map((proof) => (
-                <div
-                  key={proof.id}
-                  className="relative bg-white rounded-lg shadow overflow-hidden cursor-pointer hover:shadow-md transition-shadow"
-                  onClick={() => handleProofClick(proof)}
-                >
-                  <div className="aspect-w-16 aspect-h-9">
-                    <img
-                      src={proof.image_url}
-                      alt="Task proof"
-                      className="object-cover"
-                    />
-                  </div>
-                  <div className="p-4">
-                    <div className="flex items-center justify-between">
-                      <span
-                        className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                          proof.status === 'Approved'
-                            ? 'bg-green-100 text-green-800'
-                            : proof.status === 'Rejected'
-                            ? 'bg-red-100 text-red-800'
-                            : 'bg-yellow-100 text-yellow-800'
-                        }`}
-                      >
-                        {proof.status}
-                      </span>
-                      <PhotographIcon className="h-5 w-5 text-gray-400" />
-                    </div>
-                    <p className="mt-2 text-sm text-gray-500 line-clamp-2">
-                      {proof.description}
-                    </p>
-                    <p className="mt-2 text-xs text-gray-400">
-                      {new Date(proof.created_at).toLocaleDateString()}
-                    </p>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
 
-        {selectedProof && (
-          <TaskProofView
-            isOpen={isProofModalOpen}
-            onClose={() => {
-              setIsProofModalOpen(false);
-              setSelectedProof(null);
-            }}
-            proof={selectedProof}
-            isAdmin={true}
-            onStatusUpdate={fetchTaskDetails}
-          />
-        )}
+        <TaskProofView
+          proofs={proofs}
+          onApprove={handleApproveProof}
+          onReject={handleRejectProof}
+        />
       </div>
     </Layout>
   );
