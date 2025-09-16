@@ -48,7 +48,7 @@ export default function MeetingRoom({ meetingId, mode, onLeave }: Props) {
         : await navigator.mediaDevices.getUserMedia(constraints);
 
       if (localStream) {
-        localStream.getTracks().forEach((t) => pc.addTrack(t, localStream));
+        localStream.getTracks().forEach((t) => pc.addTrack(t, localStream!));
       }
       if (localVideoRef.current && localStream) localVideoRef.current.srcObject = localStream;
 
