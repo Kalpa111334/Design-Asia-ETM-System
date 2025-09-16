@@ -1,3 +1,5 @@
+import { Attachment } from './attachment';
+
 export interface User {
   id: string;
   email: string;

@@ -87,7 +87,7 @@ export default function TaskCompletionModal({
                 <h4 className="text-sm font-medium text-gray-700">Take Photo Proof</h4>
                 <CameraCapture
                   onCapture={handleImageCapture}
-                  onCancel={() => setShowCamera(false)}
+                  onClose={() => setShowCamera(false)}
                 />
               </div>
             ) : (

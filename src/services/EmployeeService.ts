@@ -257,7 +257,7 @@ export class EmployeeService {
       if (!user) return false;
 
       // Check auth metadata first
-      const role = user.user_metadata?.role || user.raw_user_meta_data?.role || 'employee';
+      const role = user.user_metadata?.role || 'employee';
       if (role === 'admin') return true;
 
       // Fallback to public.users table

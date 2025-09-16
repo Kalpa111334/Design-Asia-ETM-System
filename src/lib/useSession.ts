@@ -26,6 +26,7 @@ export function useSession() {
             email: session.user.email!,
             full_name: session.user.user_metadata?.full_name || '',
             role: session.user.user_metadata?.role || 'employee',
+            created_at: session.user.created_at,
           });
         } else {
           setUser(data);
@@ -55,6 +56,7 @@ export function useSession() {
             email: session.user.email!,
             full_name: session.user.user_metadata?.full_name || '',
             role: session.user.user_metadata?.role || 'employee',
+            created_at: session.user.created_at,
           });
         } else {
           setUser(data);

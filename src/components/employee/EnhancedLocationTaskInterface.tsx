@@ -13,8 +13,6 @@ import {
   PlayIcon,
   PauseIcon,
   RefreshIcon,
-  BatteryIcon,
-  SignalIcon,
   UserIcon,
   CalendarIcon,
   CurrencyDollarIcon
@@ -266,7 +264,7 @@ export default function EnhancedLocationTaskInterface() {
                 
                 {currentLocation?.battery_level && (
                   <div className="flex items-center space-x-1">
-                    <BatteryIcon className="h-4 w-4 text-gray-500" />
+                    <div className="h-4 w-4 text-gray-500">🔋</div>
                     <span className="text-sm text-gray-600">{currentLocation.battery_level}%</span>
                   </div>
                 )}
@@ -497,7 +495,7 @@ export default function EnhancedLocationTaskInterface() {
                       id: user?.id,
                       latitude: currentLocation.latitude,
                       longitude: currentLocation.longitude,
-                      full_name: user?.user_metadata?.full_name || 'You',
+                      full_name: user?.full_name || 'You',
                       email: user?.email,
                       connection_status: currentLocation.connection_status,
                       battery_level: currentLocation.battery_level,

@@ -10,10 +10,10 @@ async function testAutoForwarding() {
     const stats = await TaskAutoForwardingService.getTaskForwardingStats();
     console.log('Stats:', stats);
     
-    // Test 2: Get expected tasks
-    console.log('\n2. Testing getAllExpectedTasks...');
-    const expectedTasks = await TaskAutoForwardingService.getAllExpectedTasks();
-    console.log('Expected tasks:', expectedTasks.data?.length || 0);
+    // Test 2: Get planned tasks
+    console.log('\n2. Testing getAllPlannedTasks...');
+    const plannedTasks = await TaskAutoForwardingService.getAllPlannedTasks();
+    console.log('Planned tasks:', plannedTasks.data?.length || 0);
     
     // Test 3: Get pending tasks
     console.log('\n3. Testing getAllPendingTasks...');

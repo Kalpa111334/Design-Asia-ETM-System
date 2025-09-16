@@ -101,7 +101,7 @@ function PermissionsSettings() {
 
   const handleCreateRole = async () => {
     try {
-      await PermissionsService.createRole(roleForm);
+      await PermissionsService.createRole({ ...roleForm, is_system_role: false });
       toast.success('Role created successfully');
       setShowRoleModal(false);
       setRoleForm({ name: '', display_name: '', description: '', level: 50 });
@@ -300,7 +300,7 @@ function PermissionsSettings() {
                       const isAdmin = await PermissionsService.isCurrentUserAdmin();
                       console.log('Service admin check result:', isAdmin);
                       
-                      toast.info(`Auth role: ${user?.user_metadata?.role || 'none'}, Service check: ${isAdmin ? 'Admin' : 'Not Admin'}`);
+                      toast(`Auth role: ${user?.user_metadata?.role || 'none'}, Service check: ${isAdmin ? 'Admin' : 'Not Admin'}`);
                     }}
                     className="inline-flex items-center px-4 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
                   >

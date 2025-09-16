@@ -165,7 +165,7 @@ const createEnhancedMarker = (data: any, type: 'employee' | 'task' | 'location',
     }
   };
 
-  let color = colors[type].default;
+  let color = colors[type].default || colors[type].selected;
   let icon = '📍';
   let pulse = false;
 

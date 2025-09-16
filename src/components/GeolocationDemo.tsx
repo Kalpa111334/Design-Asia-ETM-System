@@ -6,8 +6,6 @@ import {
   MapIcon,
   LocationMarkerIcon,
   ClockIcon,
-  BatteryIcon,
-  SignalIcon,
   PlayIcon,
   PauseIcon,
   RefreshIcon,
@@ -196,7 +194,7 @@ function GeolocationDemoContent() {
               
               {currentLocation?.battery_level && (
                 <div className="flex items-center space-x-1">
-                  <BatteryIcon className="h-4 w-4 text-gray-500" />
+                  <div className="h-4 w-4 text-gray-500">🔋</div>
                   <span className="text-sm text-gray-600">{currentLocation.battery_level}%</span>
                 </div>
               )}

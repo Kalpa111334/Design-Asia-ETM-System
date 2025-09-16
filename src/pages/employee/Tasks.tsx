@@ -115,7 +115,7 @@ function Tasks() {
 
       if (error) {
         console.error('Supabase error fetching tasks:', error);
-        throw new Error(`Database error: ${error.message}`);
+        throw new Error(`Database error: ${error}`);
       }
       
       const processedTasks = (data || []).map(task => ({
@@ -135,7 +135,7 @@ function Tasks() {
           isAssignedToCurrentUser: task.assigned_to === user?.id,
           attachments: task.task_attachments,
           attachmentCount: task.task_attachments?.length || 0,
-          attachmentDetails: task.task_attachments?.map(att => ({
+          attachmentDetails: task.task_attachments?.map((att: any) => ({
             id: att.id,
             file_name: att.file_name,
             file_type: att.file_type,
@@ -290,7 +290,7 @@ function Tasks() {
         if (task.last_pause_at) {
           const pauseDuration = new Date(now).getTime() - new Date(task.last_pause_at).getTime();
           const currentPauseMs = parseIntervalToMs(task.total_pause_duration);
-          updates.total_pause_duration = `${Math.floor((currentPauseMs + pauseDuration) / 1000)} seconds`;
+          updates.total_pause_duration = currentPauseMs + pauseDuration;
         }
 
         const { error: taskError } = await supabase

@@ -47,7 +47,9 @@ export default function MeetingRoom({ meetingId, mode, onLeave }: Props) {
           })
         : await navigator.mediaDevices.getUserMedia(constraints);
 
-      localStream.getTracks().forEach((t) => pc.addTrack(t, localStream!));
+      if (localStream) {
+        localStream.getTracks().forEach((t) => pc.addTrack(t, localStream));
+      }
       if (localVideoRef.current) localVideoRef.current.srcObject = localStream;
 
       unsubscribe = await MeetingSignalingService.subscribe(meetingId, async (msg: SignalingMessage) => {

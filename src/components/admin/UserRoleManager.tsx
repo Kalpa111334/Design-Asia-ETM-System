@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { PermissionsService, Role, User } from '../../services/PermissionsService';
+import { PermissionsService, Role } from '../../services/PermissionsService';
+import { User } from '../../types';
 import { supabase } from '../../lib/supabase';
 import {
   UserGroupIcon,
@@ -124,12 +125,12 @@ export default function UserRoleManager({ user, onClose, onUpdate }: UserRoleMan
     return new Date(dateString).toLocaleDateString();
   };
 
-  const isExpired = (expiresAt: string | null) => {
+  const isExpired = (expiresAt: string | undefined) => {
     if (!expiresAt) return false;
     return new Date(expiresAt) < new Date();
   };
 
-  const isExpiringSoon = (expiresAt: string | null) => {
+  const isExpiringSoon = (expiresAt: string | undefined) => {
     if (!expiresAt) return false;
     const expirationDate = new Date(expiresAt);
     const now = new Date();
