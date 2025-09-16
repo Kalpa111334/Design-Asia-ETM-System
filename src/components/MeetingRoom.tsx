@@ -50,7 +50,7 @@ export default function MeetingRoom({ meetingId, mode, onLeave }: Props) {
       if (localStream) {
         localStream.getTracks().forEach((t) => pc.addTrack(t, localStream));
       }
-      if (localVideoRef.current) localVideoRef.current.srcObject = localStream;
+      if (localVideoRef.current && localStream) localVideoRef.current.srcObject = localStream;
 
       unsubscribe = await MeetingSignalingService.subscribe(meetingId, async (msg: SignalingMessage) => {
         if (!user) return;

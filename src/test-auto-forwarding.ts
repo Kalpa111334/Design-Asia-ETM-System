@@ -20,13 +20,13 @@ async function testAutoForwarding() {
     const pendingTasks = await TaskAutoForwardingService.getAllPendingTasks();
     console.log('Pending tasks:', pendingTasks.data?.length || 0);
     
-    // Test 4: Manual forward (if there are expected tasks)
-    if (expectedTasks.data && expectedTasks.data.length > 0) {
+    // Test 4: Manual forward (if there are planned tasks)
+    if (plannedTasks.data && plannedTasks.data.length > 0) {
       console.log('\n4. Testing manual forward...');
       const forwardResult = await TaskAutoForwardingService.forwardExpectedTasks();
       console.log('Forward result:', forwardResult);
     } else {
-      console.log('\n4. No expected tasks to forward');
+      console.log('\n4. No planned tasks to forward');
     }
     
     console.log('\n✅ All tests completed successfully!');
