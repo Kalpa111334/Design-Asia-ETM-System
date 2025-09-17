@@ -237,8 +237,27 @@ export default function TaskPool() {
                               <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${getStatusColor(task.priority)}`}>
                                 {task.priority}
                               </span>
-                              <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-gray-100 text-gray-800">
-                                Unassigned
+                              <span
+                                className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-gray-100 text-gray-800 max-w-[160px] sm:max-w-[260px] md:max-w-[320px] whitespace-nowrap overflow-hidden text-ellipsis"
+                                title={(() => {
+                                  const selected = Array.from(selectedAssigneesByTask[task.id] || new Set<string>());
+                                  const names = selected
+                                    .map((id) => employees.find((e) => e.id === id)?.full_name)
+                                    .filter(Boolean) as string[];
+                                  return names.length > 0 ? names.join(', ') : 'Unassigned';
+                                })()}
+                              >
+                              {(() => {
+                                const selected = Array.from(selectedAssigneesByTask[task.id] || new Set<string>());
+                                if (selected.length > 0) {
+                                  const names = selected
+                                    .map((id) => employees.find((e) => e.id === id)?.full_name)
+                                    .filter(Boolean) as string[];
+                                  if (names.length === 1) return names[0];
+                                  return `${names[0]} + ${names.length - 1} selected`;
+                                }
+                                return 'Unassigned';
+                              })()}
                               </span>
                             </div>
                           </div>
