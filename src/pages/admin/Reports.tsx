@@ -21,6 +21,7 @@ import {
   StatCard,
 } from '../../components/ui/ResponsiveComponents';
 import { formatCurrency } from '../../utils/currency';
+import { GeofencingService } from '../../services/GeofencingService';
 
 // Register font to avoid PDF rendering issues
 Font.register({
@@ -186,6 +187,11 @@ export default function Reports() {
     avgCompletionTime: number;
     topPerformer: string;
   } | null>(null);
+  // Location & Attendance report state
+  const [attStart, setAttStart] = useState<string>(format(new Date(), 'yyyy-MM-01'));
+  const [attEnd, setAttEnd] = useState<string>(format(new Date(), 'yyyy-MM-dd'));
+  const [attEmployee, setAttEmployee] = useState<string>('');
+  const [attGenerating, setAttGenerating] = useState<boolean>(false);
 
   useEffect(() => {
     fetchEmployeeReports();
@@ -384,6 +390,133 @@ export default function Reports() {
       setDailyReport(report);
     } catch (error) {
       console.error('Error fetching daily report:', error);
+    }
+  }
+
+  // Helper: Fetch location-based tasks and attendance events
+  async function generateLocationAttendanceData(empId: string, startISO: string, endISO: string) {
+    // Tasks assigned to employee in window
+    const { data: tasksDirect } = await supabase
+      .from('tasks')
+      .select('*, task_locations(*), task_location_events(*)')
+      .eq('assigned_to', empId)
+      .gte('created_at', startISO)
+      .lte('created_at', endISO);
+
+    const { data: viaAssignees } = await supabase
+      .from('task_assignees')
+      .select('task:tasks(*, task_locations(*), task_location_events(*))')
+      .eq('user_id', empId);
+
+    const tasks = (() => {
+      const primary = tasksDirect || [];
+      const joined = (viaAssignees || []).map((r: any) => r.task).filter(Boolean);
+      const byId = new Map<string, any>();
+      [...primary, ...joined].forEach((t: any) => byId.set(t.id, t));
+      return Array.from(byId.values());
+    })();
+
+    // Attendance events (check_in/check_out) for employee in window
+    const { data: events } = await supabase
+      .from('task_location_events')
+      .select('*')
+      .eq('user_id', empId)
+      .gte('timestamp', startISO)
+      .lte('timestamp', endISO)
+      .order('timestamp', { ascending: true });
+
+    // Movement history in window (optional, for metrics)
+    const movement = await GeofencingService.getMovementHistory(empId, new Date(startISO), new Date(endISO));
+
+    return { tasks, events: events || [], movement };
+  }
+
+  function exportAttendanceCSV(rows: Array<Record<string, any>>, filename: string) {
+    const headers = Object.keys(rows[0] || {});
+    const csv = [headers.join(','), ...rows.map(r => headers.map(h => JSON.stringify(r[h] ?? '')).join(','))].join('\n');
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
+  async function exportAttendancePDF(summary: { employeeName: string; start: string; end: string; }, rows: Array<Record<string, any>>, filename: string) {
+    const { default: jsPDF } = await import('jspdf');
+    // @ts-ignore
+    const autoTable = (await import('jspdf-autotable')).default;
+    const doc = new jsPDF();
+    doc.setFontSize(14);
+    doc.text('Location-based Tasks & Attendance Report', 14, 16);
+    doc.setFontSize(11);
+    doc.text(`Employee: ${summary.employeeName}`, 14, 24);
+    doc.text(`Period: ${summary.start} to ${summary.end}`, 14, 30);
+    const headers = Object.keys(rows[0] || {});
+    const body = rows.map(r => headers.map(h => String(r[h] ?? '')));
+    autoTable(doc, { startY: 36, head: [headers], body });
+    doc.save(filename);
+  }
+
+  async function handleDownloadAttendance(kind: 'csv' | 'pdf') {
+    try {
+      if (!attEmployee) throw new Error('Please select an employee');
+      setAttGenerating(true);
+      const startISO = new Date(attStart);
+      const endISO = new Date(attEnd);
+      endISO.setHours(23,59,59,999);
+
+      const { data: user } = await supabase.from('users').select('full_name').eq('id', attEmployee).single();
+      const employeeName = user?.full_name || 'Employee';
+
+      const { tasks, events, movement } = await generateLocationAttendanceData(attEmployee, startISO.toISOString(), endISO.toISOString());
+
+      // Flatten rows per task and event
+      const rows: Array<Record<string, any>> = [];
+      tasks.forEach((t: any) => {
+        const taskEvents = events.filter(e => e.task_id === t.id);
+        const firstCheckIn = taskEvents.find(e => e.event_type === 'check_in');
+        const lastCheckOut = [...taskEvents].reverse().find(e => e.event_type === 'check_out');
+        rows.push({
+          task_title: t.title,
+          status: t.status,
+          due_date: t.due_date ? new Date(t.due_date).toLocaleString() : '',
+          location_required: t.location_required ? 'yes' : 'no',
+          check_in_time: firstCheckIn ? new Date(firstCheckIn.timestamp).toLocaleString() : '',
+          check_out_time: lastCheckOut ? new Date(lastCheckOut.timestamp).toLocaleString() : '',
+          check_in_lat: firstCheckIn?.latitude ?? '',
+          check_in_lng: firstCheckIn?.longitude ?? '',
+          check_out_lat: lastCheckOut?.latitude ?? '',
+          check_out_lng: lastCheckOut?.longitude ?? '',
+        });
+      });
+
+      // Add summary row using movement metrics
+      if (movement && movement.length > 1) {
+        // compute distance via service util
+        let distance = 0;
+        for (let i = 1; i < movement.length; i++) {
+          distance += GeofencingService.calculateDistance(
+            movement[i-1].latitude, movement[i-1].longitude,
+            movement[i].latitude, movement[i].longitude
+          );
+        }
+        rows.push({ task_title: '[Summary]', status: '', due_date: '', location_required: '', check_in_time: '', check_out_time: '', check_in_lat: '', check_in_lng: '', check_out_lat: '', check_out_lng: '',
+          total_distance_km: Math.round(distance/1000*100)/100
+        });
+      }
+
+      const filenameBase = `${employeeName.replace(/\s+/g,'_')}_location_attendance_${attStart}_to_${attEnd}`;
+      if (kind === 'csv') {
+        exportAttendanceCSV(rows, `${filenameBase}.csv`);
+      } else {
+        await exportAttendancePDF({ employeeName, start: attStart, end: attEnd }, rows, `${filenameBase}.pdf`);
+      }
+    } catch (e: any) {
+      console.error('Export error:', e);
+    } finally {
+      setAttGenerating(false);
     }
   }
 
@@ -613,6 +746,65 @@ export default function Reports() {
                 </div>
               </div>
             )}
+          </ResponsiveCard>
+
+          {/* Location-based Tasks + Attendance Report */}
+          <ResponsiveCard>
+            <ResponsiveFlex className="justify-between items-center mb-4">
+              <h2 className="text-xl font-semibold flex items-center">
+                <UserGroupIcon className="h-6 w-6 mr-2 text-indigo-500" />
+                Location & Attendance Report
+              </h2>
+            </ResponsiveFlex>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+              <div>
+                <label className="block text-sm font-medium text-gray-700">Employee</label>
+                <select
+                  className="mt-1 w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                  value={attEmployee}
+                  onChange={(e) => setAttEmployee(e.target.value)}
+                >
+                  <option value="">Select Employee</option>
+                  {employees.map(emp => (
+                    <option key={emp.id} value={emp.id}>{emp.fullName}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700">Start Date</label>
+                <input
+                  type="date"
+                  className="mt-1 w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                  value={attStart}
+                  onChange={(e) => setAttStart(e.target.value)}
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700">End Date</label>
+                <input
+                  type="date"
+                  className="mt-1 w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                  value={attEnd}
+                  onChange={(e) => setAttEnd(e.target.value)}
+                />
+              </div>
+              <div className="flex items-end space-x-2">
+                <button
+                  onClick={() => handleDownloadAttendance('csv')}
+                  disabled={attGenerating}
+                  className="w-full inline-flex items-center justify-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+                >
+                  {attGenerating ? 'Generating…' : 'Download CSV'}
+                </button>
+                <button
+                  onClick={() => handleDownloadAttendance('pdf')}
+                  disabled={attGenerating}
+                  className="w-full inline-flex items-center justify-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md shadow-sm text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+                >
+                  {attGenerating ? 'Generating…' : 'Download PDF'}
+                </button>
+              </div>
+            </div>
           </ResponsiveCard>
         </div>
       </ResponsiveContainer>
