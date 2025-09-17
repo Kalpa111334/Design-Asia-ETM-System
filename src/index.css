@@ -5,6 +5,9 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Import Leaflet mobile styles */
+@import './styles/leaflet-mobile.css';
+
 /* Custom Leaflet Marker Styles */
 .custom-marker {
   background: transparent !important;

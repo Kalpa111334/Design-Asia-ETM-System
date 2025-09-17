@@ -1,271 +1,449 @@
-import React, { useState, useCallback, useRef } from 'react';
-import { MapContainer, TileLayer, Marker, useMap } from 'react-leaflet';
+import React, { useState, useEffect, useRef } from 'react';
+import { MapContainer, TileLayer, Marker, Popup, useMapEvents, useMap } from 'react-leaflet';
 import L from 'leaflet';
-import { SearchIcon } from '@heroicons/react/outline';
-import { AlertService } from '../../services/AlertService';
+import { GeofencingService, Geofence } from '../../services/GeofencingService';
+import {
+  LocationMarkerIcon,
+  SearchIcon,
+  XCircleIcon,
+  CheckCircleIcon,
+  MapIcon,
+} from '@heroicons/react/outline';
+import toast from 'react-hot-toast';
 
-interface MapLocationPickerProps {
-  onLocationSelect: (location: { lat: number; lng: number }) => void;
-  existingLocations?: { latitude: number; longitude: number }[];
-  initialCenter?: { lat: number; lng: number };
+// Fix for default markers
+delete (L.Icon.Default.prototype as any)._getIconUrl;
+L.Icon.Default.mergeOptions({
+  iconRetinaUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-icon-2x.png',
+  iconUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-icon.png',
+  shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-shadow.png',
+});
+
+interface MapLocationPickerOSMProps {
+  onLocationSelect: (location: { lat: number; lng: number; address?: string }) => void;
+  onClose: () => void;
+  initialLocation?: { lat: number; lng: number };
+  title?: string;
+  geofences?: Geofence[];
 }
 
-const defaultCenter: [number, number] = [7.8731, 80.7718]; // Default to Central Sri Lanka
+interface LocationData {
+  lat: number;
+  lng: number;
+  address?: string;
+}
 
-// Custom marker icon
-const createLocationMarker = (isSelected: boolean) => {
-  return L.divIcon({
-    className: 'custom-marker',
-    html: `
-      <div style="
-        width: 32px;
-        height: 32px;
-        position: relative;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-      ">
-        <div style="
-          position: absolute;
-          width: 32px;
-          height: 32px;
-          background: ${isSelected ? '#ef4444' : '#3b82f6'};
-          border-radius: 50%;
-          border: 3px solid white;
-          box-shadow: 0 4px 8px rgba(0,0,0,0.3);
-          display: flex;
-          align-items: center;
-          justify-content: center;
-        ">
-          <span style="
-            color: white;
-            font-weight: bold;
-            font-size: 16px;
-          ">📍</span>
-        </div>
-        ${isSelected ? `
-          <div style="
-            position: absolute;
-            top: -8px;
-            left: 50%;
-            transform: translateX(-50%);
-            width: 0;
-            height: 0;
-            border-left: 6px solid transparent;
-            border-right: 6px solid transparent;
-            border-bottom: 8px solid #ef4444;
-            filter: drop-shadow(0 2px 4px rgba(0,0,0,0.3));
-          "></div>
-        ` : ''}
-      </div>
-    `,
-    iconSize: [32, 32],
-    iconAnchor: [16, 16],
-    popupAnchor: [0, -16],
-  });
-};
-
-// Map component that handles map interactions
-function MapComponent({ 
-  selectedLocation, 
+// Component for handling map clicks
+function LocationSelector({ 
   onLocationSelect, 
-  existingLocations 
-}: {
-  selectedLocation: [number, number] | null;
-  onLocationSelect: (location: { lat: number; lng: number }) => void;
-  existingLocations: { latitude: number; longitude: number }[];
+  selectedLocation 
+}: { 
+  onLocationSelect: (lat: number, lng: number) => void;
+  selectedLocation: LocationData | null;
 }) {
   const map = useMap();
 
-  const handleMapClick = useCallback((e: L.LeafletMouseEvent) => {
-    const { lat, lng } = e.latlng;
-    onLocationSelect({ lat, lng });
-  }, [onLocationSelect]);
+  useMapEvents({
+    click(e) {
+      onLocationSelect(e.latlng.lat, e.latlng.lng);
+    },
+  });
 
-  React.useEffect(() => {
-    map.on('click', handleMapClick);
-    return () => {
-      map.off('click', handleMapClick);
-    };
-  }, [map, handleMapClick]);
+  // Auto-zoom to Sri Lanka bounds on mount
+  useEffect(() => {
+    const sriLankaBounds = L.latLngBounds(
+      [5.9169, 79.6951], // Southwest
+      [9.8317, 81.8914]  // Northeast
+    );
+    map.fitBounds(sriLankaBounds);
+  }, [map]);
 
+  return selectedLocation ? (
+    <Marker
+      position={[selectedLocation.lat, selectedLocation.lng]}
+      icon={L.divIcon({
+        className: 'selected-location-marker',
+        html: `
+          <div style="
+            width: 50px;
+            height: 50px;
+            position: relative;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+          ">
+            <!-- Pulsing outer ring -->
+            <div style="
+              position: absolute;
+              width: 50px;
+              height: 50px;
+              background: #3b82f6;
+              border-radius: 50%;
+              opacity: 0.3;
+              animation: pulse 2s infinite;
+            "></div>
+            
+            <!-- Main marker -->
+            <div style="
+              position: absolute;
+              width: 36px;
+              height: 36px;
+              background: #3b82f6;
+              border: 3px solid white;
+              border-radius: 50%;
+              box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+              display: flex;
+              align-items: center;
+              justify-content: center;
+              z-index: 1000;
+            ">
+              <span style="
+                color: white;
+                font-size: 18px;
+                font-weight: bold;
+              ">📍</span>
+            </div>
+          </div>
+          <style>
+            @keyframes pulse {
+              0% { transform: scale(1); opacity: 0.3; }
+              50% { transform: scale(1.2); opacity: 0.1; }
+              100% { transform: scale(1); opacity: 0.3; }
+            }
+          </style>
+        `,
+        iconSize: [50, 50],
+        iconAnchor: [25, 25],
+      })}
+    >
+      <Popup>
+        <div className="text-center">
+          <div className="flex items-center justify-center mb-2">
+            <CheckCircleIcon className="h-5 w-5 text-green-500 mr-2" />
+            <span className="font-semibold text-green-700">Selected Location</span>
+          </div>
+          <p className="text-sm text-gray-600">
+            Lat: {selectedLocation.lat.toFixed(6)}<br />
+            Lng: {selectedLocation.lng.toFixed(6)}
+          </p>
+          {selectedLocation.address && (
+            <p className="text-xs text-gray-500 mt-2">{selectedLocation.address}</p>
+          )}
+        </div>
+      </Popup>
+    </Marker>
+  ) : null;
+}
+
+// Map controls component
+function MapControls({ 
+  onZoomToSriLanka, 
+  onGetCurrentLocation, 
+  onSearch 
+}: {
+  onZoomToSriLanka: () => void;
+  onGetCurrentLocation: () => void;
+  onSearch: () => void;
+}) {
   return (
-    <>
-      {/* Selected Location Marker */}
-      {selectedLocation && (
-        <Marker
-          position={selectedLocation}
-          icon={createLocationMarker(true)}
-        />
-      )}
-
-      {/* Existing Locations Markers */}
-      {existingLocations.map((location, index) => (
-        <Marker
-          key={index}
-          position={[location.latitude, location.longitude]}
-          icon={createLocationMarker(false)}
-        />
-      ))}
-    </>
+    <div className="absolute top-4 right-4 z-[1000] space-y-2">
+      <button
+        onClick={onZoomToSriLanka}
+        className="bg-white hover:bg-gray-50 border border-gray-300 rounded-lg p-3 shadow-lg transition-colors"
+        title="Zoom to Sri Lanka"
+      >
+        🇱🇰
+      </button>
+      <button
+        onClick={onGetCurrentLocation}
+        className="bg-white hover:bg-gray-50 border border-gray-300 rounded-lg p-3 shadow-lg transition-colors"
+        title="Get Current Location"
+      >
+        <LocationMarkerIcon className="h-5 w-5 text-blue-600" />
+      </button>
+      <button
+        onClick={onSearch}
+        className="bg-white hover:bg-gray-50 border border-gray-300 rounded-lg p-3 shadow-lg transition-colors"
+        title="Search Location"
+      >
+        <SearchIcon className="h-5 w-5 text-green-600" />
+      </button>
+    </div>
   );
 }
 
 export default function MapLocationPickerOSM({ 
   onLocationSelect, 
-  existingLocations = [], 
-  initialCenter 
-}: MapLocationPickerProps) {
-  const [searchInput, setSearchInput] = useState('');
-  const [selectedLocation, setSelectedLocation] = useState<[number, number] | null>(null);
+  onClose, 
+  initialLocation,
+  title = "Select Location",
+  geofences = []
+}: MapLocationPickerOSMProps) {
+  const [selectedLocation, setSelectedLocation] = useState<LocationData | null>(
+    initialLocation ? { lat: initialLocation.lat, lng: initialLocation.lng } : null
+  );
+  const [searchQuery, setSearchQuery] = useState('');
+  const [showSearch, setShowSearch] = useState(false);
   const [isSearching, setIsSearching] = useState(false);
   const mapRef = useRef<L.Map>(null);
 
-  const handleLocationSelect = useCallback((location: { lat: number; lng: number }) => {
-    const coords: [number, number] = [location.lat, location.lng];
-    setSelectedLocation(coords);
-    onLocationSelect(location);
-  }, [onLocationSelect]);
+  const handleLocationClick = async (lat: number, lng: number) => {
+    const location: LocationData = { lat, lng };
+    
+    // Try to get address from reverse geocoding (OpenStreetMap Nominatim)
+    try {
+      const response = await fetch(
+        `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&addressdetails=1`
+      );
+      const data = await response.json();
+      if (data.display_name) {
+        location.address = data.display_name;
+      }
+    } catch (error) {
+      console.log('Could not get address for location');
+    }
+    
+    setSelectedLocation(location);
+    
+    // Auto-zoom to selected location for better precision
+    if (mapRef.current) {
+      mapRef.current.setView([lat, lng], 16);
+    }
+    
+    toast.success('Location selected! Click "Confirm Location" to proceed.');
+  };
 
-  const handleSearchLocation = async () => {
-    if (!searchInput.trim()) return;
+  const handleSearch = async () => {
+    if (!searchQuery.trim()) {
+      toast.error('Please enter a search query');
+      return;
+    }
 
     setIsSearching(true);
     try {
-      // Using OpenStreetMap Nominatim for geocoding (free)
+      // Search using OpenStreetMap Nominatim
       const response = await fetch(
-        `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(searchInput)}&limit=1&addressdetails=1&accept-language=en`
+        `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(searchQuery)}&countrycodes=lk&limit=5&addressdetails=1`
       );
-      const data = await response.json();
+      const results = await response.json();
       
-      if (data && data.length > 0) {
-        const result = data[0];
+      if (results.length > 0) {
+        const result = results[0];
         const lat = parseFloat(result.lat);
         const lng = parseFloat(result.lon);
         
-        if (!isNaN(lat) && !isNaN(lng)) {
-          const coords: [number, number] = [lat, lng];
-          setSelectedLocation(coords);
-          onLocationSelect({ lat, lng });
-          
-          // Pan to the searched location
-          if (mapRef.current) {
-            mapRef.current.setView(coords, 15);
-          }
-        }
+        handleLocationClick(lat, lng);
+        setShowSearch(false);
+        setSearchQuery('');
+        toast.success('Location found!');
       } else {
-        await AlertService.info('Location not found', 'Please try a different search term.');
+        toast.error('Location not found. Try a different search term.');
       }
     } catch (error) {
-      console.error('Geocoding error:', error);
-      await AlertService.error('Search error', 'Error searching for location. Please try again.');
+      console.error('Search error:', error);
+      toast.error('Search failed. Please try again.');
     } finally {
       setIsSearching(false);
     }
   };
 
-  const handleKeyPress = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter') {
-      handleSearchLocation();
+  const getCurrentLocation = () => {
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          const lat = position.coords.latitude;
+          const lng = position.coords.longitude;
+          handleLocationClick(lat, lng);
+        },
+        (error) => {
+          console.error('Error getting location:', error);
+          toast.error('Failed to get current location. Please ensure location access is enabled.');
+        },
+        {
+          enableHighAccuracy: true,
+          timeout: 10000,
+          maximumAge: 0
+        }
+      );
+    } else {
+      toast.error('Geolocation is not supported by this browser');
     }
   };
 
-  const clearSelection = () => {
-    setSelectedLocation(null);
-    setSearchInput('');
+  const zoomToSriLanka = () => {
+    if (mapRef.current) {
+      const sriLankaBounds = L.latLngBounds(
+        [5.9169, 79.6951], // Southwest
+        [9.8317, 81.8914]  // Northeast
+      );
+      mapRef.current.fitBounds(sriLankaBounds);
+    }
   };
 
-  const center = initialCenter ? [initialCenter.lat, initialCenter.lng] as [number, number] : defaultCenter;
+  const handleConfirm = () => {
+    if (selectedLocation) {
+      onLocationSelect(selectedLocation);
+    } else {
+      toast.error('Please select a location first');
+    }
+  };
 
   return (
-    <div className="space-y-4">
-      {/* Search Bar */}
-      <div className="flex space-x-2">
-        <div className="flex-1 relative">
-          <input
-            type="text"
-            value={searchInput}
-            onChange={(e) => setSearchInput(e.target.value)}
-            onKeyPress={handleKeyPress}
-            placeholder="Search for a location (e.g., Colombo, Sri Lanka)"
-            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-          />
-        </div>
-        <button
-          onClick={handleSearchLocation}
-          disabled={isSearching || !searchInput.trim()}
-          className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-2"
-        >
-          <SearchIcon className="h-4 w-4" />
-          <span>{isSearching ? 'Searching...' : 'Search'}</span>
-        </button>
-      </div>
-
-      {/* Map Container */}
-      <div className="relative">
-        <MapContainer
-          center={center}
-          zoom={12}
-          style={{ height: '400px', width: '100%' }}
-          ref={mapRef}
-        >
-          <TileLayer
-            attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-            url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-          />
-          
-          <MapComponent
-            selectedLocation={selectedLocation}
-            onLocationSelect={handleLocationSelect}
-            existingLocations={existingLocations}
-          />
-        </MapContainer>
+    <div className="fixed inset-0 z-50 overflow-y-auto">
+      <div className="flex min-h-screen items-center justify-center p-4">
+        <div className="fixed inset-0 bg-black bg-opacity-50 transition-opacity" onClick={onClose} />
         
-        {/* Map Instructions */}
-        <div className="absolute top-4 left-4 bg-white bg-opacity-90 rounded-lg p-3 shadow-lg max-w-xs">
-          <h4 className="font-medium text-gray-900 mb-2">Instructions:</h4>
-          <ul className="text-sm text-gray-600 space-y-1">
-            <li>• Click on the map to select a location</li>
-            <li>• Use the search bar to find specific places</li>
-            <li>• Red marker shows your selected location</li>
-            <li>• Blue markers show existing locations</li>
-          </ul>
-        </div>
-      </div>
-
-      {/* Selected Location Info */}
-      {selectedLocation && (
-        <div className="bg-green-50 border border-green-200 rounded-lg p-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <h4 className="font-medium text-green-900">Selected Location</h4>
-              <p className="text-sm text-green-700">
-                Latitude: {selectedLocation[0].toFixed(6)}
-              </p>
-              <p className="text-sm text-green-700">
-                Longitude: {selectedLocation[1].toFixed(6)}
-              </p>
+        <div className="relative bg-white rounded-lg shadow-xl max-w-4xl w-full max-h-[90vh] overflow-hidden location-picker-modal">
+          {/* Header */}
+          <div className="px-6 py-4 border-b border-gray-200 bg-gradient-to-r from-blue-600 to-indigo-600">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center">
+                <MapIcon className="h-6 w-6 text-white mr-3" />
+                <h3 className="text-lg font-semibold text-white">{title}</h3>
+              </div>
+              <button
+                onClick={onClose}
+                className="text-white hover:text-gray-200 transition-colors"
+              >
+                <XCircleIcon className="h-6 w-6" />
+              </button>
             </div>
-            <button
-              onClick={clearSelection}
-              className="px-3 py-1 bg-green-600 text-white text-sm rounded hover:bg-green-700"
-            >
-              Clear
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* OpenStreetMap Info */}
-      <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
-        <div className="flex items-center">
-          <div className="flex-shrink-0">
-            <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
-          </div>
-          <div className="ml-3">
-            <p className="text-sm text-blue-800">
-              <strong>OpenStreetMap:</strong> Free and open-source mapping data. No API key required.
+            <p className="text-blue-100 text-sm mt-1">
+              Click anywhere on the map to select a location, or use the controls to search or get your current location.
             </p>
+          </div>
+
+          {/* Search Bar */}
+          {showSearch && (
+            <div className="px-6 py-4 bg-gray-50 border-b border-gray-200">
+              <div className="flex gap-3">
+                <div className="flex-1">
+                  <input
+                    type="text"
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
+                    className="w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                    placeholder="Search for a location in Sri Lanka..."
+                  />
+                </div>
+                <button
+                  onClick={handleSearch}
+                  disabled={isSearching}
+                  className="bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700 disabled:opacity-50"
+                >
+                  {isSearching ? 'Searching...' : 'Search'}
+                </button>
+                <button
+                  onClick={() => setShowSearch(false)}
+                  className="bg-gray-600 text-white px-4 py-2 rounded-md hover:bg-gray-700"
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Map */}
+          <div className="relative map-container-modal" style={{ height: '500px' }}>
+            <MapContainer
+              center={initialLocation ? [initialLocation.lat, initialLocation.lng] : [7.8731, 80.7718]}
+              zoom={initialLocation ? 16 : 8}
+              style={{ height: '100%', width: '100%' }}
+              ref={mapRef}
+              className="location-picker-map"
+              scrollWheelZoom={true}
+              touchZoom={true}
+              doubleClickZoom={true}
+              dragging={true}
+            >
+              <TileLayer
+                attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+                url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+              />
+              
+              <LocationSelector
+                onLocationSelect={handleLocationClick}
+                selectedLocation={selectedLocation}
+              />
+
+              {/* Show existing geofences for reference */}
+              {geofences.map((geofence) => (
+                <Marker
+                  key={geofence.id}
+                  position={[geofence.center_latitude, geofence.center_longitude]}
+                  icon={L.divIcon({
+                    className: 'geofence-reference-marker',
+                    html: `
+                      <div style="
+                        width: 30px;
+                        height: 30px;
+                        background: #8b5cf6;
+                        border: 2px solid white;
+                        border-radius: 50%;
+                        box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+                        display: flex;
+                        align-items: center;
+                        justify-content: center;
+                        opacity: 0.7;
+                      ">
+                        <span style="color: white; font-size: 12px;">📍</span>
+                      </div>
+                    `,
+                    iconSize: [30, 30],
+                    iconAnchor: [15, 15],
+                  })}
+                >
+                  <Popup>
+                    <div className="text-xs">
+                      <p className="font-semibold">{geofence.name}</p>
+                      <p className="text-gray-600">Existing geofence</p>
+                    </div>
+                  </Popup>
+                </Marker>
+              ))}
+            </MapContainer>
+
+            <MapControls
+              onZoomToSriLanka={zoomToSriLanka}
+              onGetCurrentLocation={getCurrentLocation}
+              onSearch={() => setShowSearch(!showSearch)}
+            />
+          </div>
+
+          {/* Selected Location Info */}
+          {selectedLocation && (
+            <div className="px-6 py-4 bg-green-50 border-t border-gray-200">
+              <div className="flex items-center">
+                <CheckCircleIcon className="h-5 w-5 text-green-500 mr-2" />
+                <div className="flex-1">
+                  <p className="font-medium text-green-800">Location Selected</p>
+                  <p className="text-sm text-green-700">
+                    Latitude: {selectedLocation.lat.toFixed(6)}, Longitude: {selectedLocation.lng.toFixed(6)}
+                  </p>
+                  {selectedLocation.address && (
+                    <p className="text-xs text-green-600 mt-1">{selectedLocation.address}</p>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Footer */}
+          <div className="px-6 py-4 border-t border-gray-200 bg-gray-50 flex justify-end space-x-3">
+            <button
+              onClick={onClose}
+              className="px-4 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-100 transition-colors"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={handleConfirm}
+              disabled={!selectedLocation}
+              className="px-6 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            >
+              Confirm Location
+            </button>
           </div>
         </div>
       </div>
