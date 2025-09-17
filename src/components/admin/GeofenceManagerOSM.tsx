@@ -144,7 +144,7 @@ export default function GeofenceManagerOSM({ onGeofenceSelect, selectedGeofenceI
     radius_meters: 100,
   });
 
-  const mapRef = useRef<L.Map>(null);
+  const mapRef = useRef<L.Map | null>(null);
 
   useEffect(() => {
     fetchGeofences();

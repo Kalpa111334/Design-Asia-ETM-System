@@ -8,7 +8,7 @@ import {
   RefreshIcon,
   TrashIcon,
   CheckCircleIcon,
-  ExclamationTriangleIcon,
+  ExclamationCircleIcon,
   InformationCircleIcon,
 } from '@heroicons/react/outline';
 import toast from 'react-hot-toast';
@@ -195,7 +195,7 @@ export default function OfflineStatusDashboard() {
               {stats.isOnline ? (
                 <CheckCircleIcon className="h-6 w-6 text-green-600" />
               ) : (
-                <ExclamationTriangleIcon className="h-6 w-6 text-red-600" />
+                <ExclamationCircleIcon className="h-6 w-6 text-red-600" />
               )}
             </div>
             <div className="ml-4">

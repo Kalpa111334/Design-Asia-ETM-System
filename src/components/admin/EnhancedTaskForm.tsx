@@ -677,14 +677,8 @@ export default function EnhancedTaskForm({ onSubmit, initialData, isEdit = false
               <div className="mb-4">
                 <MapLocationPickerOSM
                   onLocationSelect={handleMapLocationSelect}
-                  existingLocations={locations
-                    .filter(loc => typeof loc.latitude === 'number' && typeof loc.longitude === 'number')
-                    .map(loc => ({
-                      latitude: loc.latitude as number,
-                      longitude: loc.longitude as number
-                    }))
-                  }
-                  initialCenter={
+                  onClose={() => setShowMapPicker(false)}
+                  initialLocation={
                     activeLocationIndex !== null && locations[activeLocationIndex]?.latitude
                       ? {
                           lat: locations[activeLocationIndex].latitude!,

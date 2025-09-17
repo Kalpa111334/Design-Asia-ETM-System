@@ -172,7 +172,7 @@ export class LocationTaskService {
             locationUpdates.location_name = geofence.name;
           }
         } else if (updates.custom_location) {
-          locationUpdates.geofence_id = null;
+          (locationUpdates as any).geofence_id = null;
           locationUpdates.required_latitude = updates.custom_location.lat;
           locationUpdates.required_longitude = updates.custom_location.lng;
           locationUpdates.location_address = updates.custom_location.address;
