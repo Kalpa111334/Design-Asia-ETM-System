@@ -42,7 +42,7 @@ export default function TaskPool() {
       const taskList = data || [];
       setTasks(taskList);
 
-      // Seed existing assignees from task_assignees so UI shows names when present
+      // Seed existing assignees from task_assignees and legacy assigned_to so UI shows names when present
       if (taskList.length > 0) {
         try {
           const taskIds = taskList.map((t: Task) => t.id);
@@ -59,7 +59,25 @@ export default function TaskPool() {
               if (!nextState[row.task_id]) nextState[row.task_id] = new Set<string>();
               nextState[row.task_id].add(row.user_id);
             }
+            // Also seed from legacy single assigned_to field if present
+            for (const t of taskList) {
+              if (t.assigned_to) {
+                if (!nextState[t.id]) nextState[t.id] = new Set<string>();
+                nextState[t.id].add(t.assigned_to);
+              }
+            }
             setSelectedAssigneesByTask((prev) => ({ ...prev, ...nextState }));
+          } else {
+            // No task_assignees rows; fallback to legacy assigned_to seeding only
+            const nextState: Record<string, Set<string>> = {};
+            for (const t of taskList) {
+              if (t.assigned_to) {
+                nextState[t.id] = new Set<string>([t.assigned_to]);
+              }
+            }
+            if (Object.keys(nextState).length > 0) {
+              setSelectedAssigneesByTask((prev) => ({ ...prev, ...nextState }));
+            }
           }
         } catch (seedError) {
           console.warn('Error seeding assignees state:', seedError);
