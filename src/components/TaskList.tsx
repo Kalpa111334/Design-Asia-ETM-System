@@ -49,13 +49,17 @@ export default function TaskList({ isAdmin = false }: TaskListProps) {
   const { user } = useAuth();
   const [tasks, setTasks] = useState<Task[]>([]);
   const [users, setUsers] = useState<{ [key: string]: User }>({});
+  const [taskAssignees, setTaskAssignees] = useState<{ [key: string]: User[] }>({});
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState('all');
 
   useEffect(() => {
     fetchTasks();
     fetchUsers();
-  }, [user]);
+    if (isAdmin) {
+      fetchTaskAssignees();
+    }
+  }, [user, isAdmin]);
 
   async function fetchTasks() {
     try {
@@ -124,6 +128,43 @@ export default function TaskList({ isAdmin = false }: TaskListProps) {
       setUsers(usersMap);
     } catch (error) {
       console.error('Error fetching users:', error);
+    }
+  }
+
+  async function fetchTaskAssignees() {
+    try {
+      const { data, error } = await supabase
+        .from('task_assignees')
+        .select(`
+          task_id,
+          user_id,
+          users!task_assignees_user_id_fkey (
+            id,
+            full_name,
+            email
+          )
+        `);
+      
+      if (error) throw error;
+
+      const assigneesMap = (data || []).reduce((acc, assignee) => {
+        const taskId = assignee.task_id;
+        const user = assignee.users;
+        
+        if (!acc[taskId]) {
+          acc[taskId] = [];
+        }
+        
+        if (user) {
+          acc[taskId].push(user);
+        }
+        
+        return acc;
+      }, {} as { [key: string]: User[] });
+
+      setTaskAssignees(assigneesMap);
+    } catch (error) {
+      console.error('Error fetching task assignees:', error);
     }
   }
 
@@ -203,6 +244,23 @@ export default function TaskList({ isAdmin = false }: TaskListProps) {
     const workingTimeHours = Math.round(workingTimeMs / (1000 * 60 * 60) * 10) / 10;
 
     return `${workingTimeHours}h`;
+  };
+
+  const getTaskAssignmentDisplay = (task: Task): string => {
+    // If this is admin view, check for multiple assignees first
+    if (isAdmin && taskAssignees[task.id] && taskAssignees[task.id].length > 0) {
+      const assigneeNames = taskAssignees[task.id].map(user => user.full_name).filter(Boolean);
+      if (assigneeNames.length > 0) {
+        return assigneeNames.join(', ');
+      }
+    }
+    
+    // Fallback to single assigned_to field
+    if (task.assigned_to && users[task.assigned_to]) {
+      return users[task.assigned_to].full_name || 'Unknown';
+    }
+    
+    return 'Unassigned';
   };
 
   const filteredTasks = tasks.filter((task) => {
@@ -312,7 +370,7 @@ export default function TaskList({ isAdmin = false }: TaskListProps) {
                   <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-6">
                     <p className="flex items-center text-xs sm:text-sm text-gray-500">
                       <UserIcon className="flex-shrink-0 mr-1.5 h-4 w-4 sm:h-5 sm:w-5 text-gray-400" />
-                      <span className="truncate">{users[task.assigned_to || '']?.full_name || 'Unassigned'}</span>
+                      <span className="truncate">{getTaskAssignmentDisplay(task)}</span>
                     </p>
                     <p className="flex items-center text-xs sm:text-sm text-gray-500">
                       <CalendarIcon className="flex-shrink-0 mr-1.5 h-4 w-4 sm:h-5 sm:w-5 text-gray-400" />
