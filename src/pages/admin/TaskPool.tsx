@@ -39,7 +39,32 @@ export default function TaskPool() {
         console.error('Supabase error fetching tasks:', error);
         throw new Error(`Database error: ${error.message}`);
       }
-      setTasks(data || []);
+      const taskList = data || [];
+      setTasks(taskList);
+
+      // Seed existing assignees from task_assignees so UI shows names when present
+      if (taskList.length > 0) {
+        try {
+          const taskIds = taskList.map((t: Task) => t.id);
+          const { data: taRows, error: taError } = await supabase
+            .from('task_assignees')
+            .select('task_id,user_id')
+            .in('task_id', taskIds);
+
+          if (taError) {
+            console.warn('Could not fetch task_assignees:', taError);
+          } else if (taRows && taRows.length > 0) {
+            const nextState: Record<string, Set<string>> = {};
+            for (const row of taRows as Array<{ task_id: string; user_id: string }>) {
+              if (!nextState[row.task_id]) nextState[row.task_id] = new Set<string>();
+              nextState[row.task_id].add(row.user_id);
+            }
+            setSelectedAssigneesByTask((prev) => ({ ...prev, ...nextState }));
+          }
+        } catch (seedError) {
+          console.warn('Error seeding assignees state:', seedError);
+        }
+      }
     } catch (error: any) {
       console.error('Error fetching tasks:', error);
       
