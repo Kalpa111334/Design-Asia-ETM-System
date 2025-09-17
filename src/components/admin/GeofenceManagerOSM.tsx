@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { MapContainer, TileLayer, Marker, Popup, Circle, useMapEvents, useMap } from 'react-leaflet';
+import OfflineCapableMap from '../maps/OfflineCapableMap';
 import L from 'leaflet';
 import { GeofencingService, Geofence } from '../../services/GeofencingService';
 import { supabase } from '../../lib/supabase';
@@ -372,22 +373,14 @@ export default function GeofenceManagerOSM({ onGeofenceSelect, selectedGeofenceI
         </div>
         
         <div className="relative map-container" style={{ height: '500px' }}>
-          <MapContainer
+          <OfflineCapableMap
             center={[7.8731, 80.7718]} // Central Sri Lanka
             zoom={8}
             style={{ height: '100%', width: '100%' }}
-            ref={mapRef}
-            className="rounded-b-lg"
-            scrollWheelZoom={true}
-            touchZoom={true}
-            doubleClickZoom={true}
-            dragging={true}
+            onMapReady={(map) => { mapRef.current = map; }}
+            enableOfflineSupport={true}
+            preloadRadius={10} // Cache 10km radius
           >
-            <TileLayer
-              attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-              url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-            />
-            
             <MapClickHandler
               isCreating={isCreating}
               onLocationSelect={handleLocationSelect}
@@ -447,7 +440,7 @@ export default function GeofenceManagerOSM({ onGeofenceSelect, selectedGeofenceI
                 }}
               />
             )}
-          </MapContainer>
+          </OfflineCapableMap>
 
           <div className="map-controls">
             <button
