@@ -10,7 +10,7 @@ import {
   LocationMarkerIcon,
   ClockIcon,
   TrendingUpIcon,
-  RouteIcon,
+  TruckIcon,
   PlayIcon,
   RefreshIcon,
 } from '@heroicons/react/outline';
@@ -323,7 +323,7 @@ export default function RouteOptimizer({ employeeId, onClose }: RouteOptimizerPr
           <div className="px-6 py-4 border-b border-gray-200 bg-gradient-to-r from-purple-600 to-indigo-600">
             <div className="flex items-center justify-between">
               <div className="flex items-center">
-                <RouteIcon className="h-6 w-6 text-white mr-3" />
+                <TruckIcon className="h-6 w-6 text-white mr-3" />
                 <div>
                   <h2 className="text-xl font-bold text-white">Route Optimizer</h2>
                   <p className="text-purple-100 text-sm">
@@ -492,7 +492,7 @@ export default function RouteOptimizer({ employeeId, onClose }: RouteOptimizerPr
                     const taskLocation = task.task_locations?.[0];
                     if (!taskLocation?.required_latitude || !taskLocation?.required_longitude) return null;
 
-                    const routeIndex = optimizedRoute?.stops.findIndex(stop => stop.id === task.id);
+                    const routeIndex = optimizedRoute ? optimizedRoute.stops.findIndex(stop => stop.id === task.id) : -1;
                     
                     return (
                       <Marker

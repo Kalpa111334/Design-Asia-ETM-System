@@ -97,6 +97,7 @@ export class LocationNotificationService {
             longitude: update.longitude,
             distance: result.distance,
             priority: 'high',
+            timestamp: new Date().toISOString(),
           });
         } else if (result.distance <= 500 && result.distance > 100) {
           // User is approaching task location
@@ -109,6 +110,7 @@ export class LocationNotificationService {
             longitude: update.longitude,
             distance: result.distance,
             priority: 'medium',
+            timestamp: new Date().toISOString(),
           });
         }
       }
@@ -415,6 +417,7 @@ export class LocationNotificationService {
                 taskId: task.id,
                 priority: 'high',
                 actionUrl: `/tasks?highlight=${task.id}`,
+                timestamp: new Date().toISOString(),
               });
             }
           }
@@ -430,12 +433,13 @@ export class LocationNotificationService {
           if (locationCheck.isWithinLocation) {
             // Check if user has been here for more than 10 minutes without checking in
             // This would require tracking when they arrived, which we'll implement later
-            await this.createNotification({
+              await this.createNotification({
               type: 'check_in_reminder',
               title: 'Check In Reminder',
               message: `You're at the location for "${task.title}". Don't forget to check in!`,
               taskId: task.id,
               priority: 'medium',
+                timestamp: new Date().toISOString(),
             });
           }
         }

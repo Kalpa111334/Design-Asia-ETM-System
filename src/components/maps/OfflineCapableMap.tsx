@@ -49,17 +49,17 @@ class OfflineTileLayer extends L.TileLayer {
           tile.src = objectURL;
           tile.onload = () => {
             URL.revokeObjectURL(objectURL);
-            done(null, tile);
+            done(undefined, tile);
           };
         } else {
           // Fall back to network
           tile.crossOrigin = 'anonymous';
           tile.src = url;
-          tile.onload = () => done(null, tile);
+          tile.onload = () => done(undefined, tile);
           tile.onerror = () => {
             // Show offline indicator on tile
             tile.src = this.createOfflineTile(coords);
-            done(null, tile);
+            done(undefined, tile);
           };
         }
       })
@@ -67,10 +67,10 @@ class OfflineTileLayer extends L.TileLayer {
         // Network request as fallback
         tile.crossOrigin = 'anonymous';
         tile.src = url;
-        tile.onload = () => done(null, tile);
+        tile.onload = () => done(undefined, tile);
         tile.onerror = () => {
           tile.src = this.createOfflineTile(coords);
-          done(null, tile);
+          done(undefined, tile);
         };
       });
 
@@ -271,11 +271,11 @@ export default function OfflineCapableMap({
         dragging={true}
       >
         {enableOfflineSupport ? (
-          <TileLayer
+          // Use custom offline-capable tile layer
+          // @ts-ignore - extending L.TileLayer for offline
+          <OfflineTileLayer
             attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
             url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-            // @ts-ignore - Custom tile layer
-            tileLayer={OfflineTileLayer}
           />
         ) : (
           <TileLayer

@@ -405,7 +405,7 @@ export default function TaskForm({ onSubmit, initialData, isEdit = false }: Task
         <MapLocationPickerOSM
           onLocationSelect={handleLocationSelect}
           onClose={() => setShowMapPicker(false)}
-          initialLocation={customLocation}
+          initialLocation={customLocation ? { lat: customLocation.lat, lng: customLocation.lng } : undefined}
           title="Select Task Location"
           geofences={geofences}
         />

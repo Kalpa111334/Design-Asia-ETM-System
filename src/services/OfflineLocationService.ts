@@ -398,7 +398,7 @@ export class OfflineLocationService {
       const transaction = this.db!.transaction([this.LOCATION_STORE], 'readonly');
       const store = transaction.objectStore(this.LOCATION_STORE);
       const index = store.index('synced');
-      const request = index.getAll(false); // Get unsynced items
+      const request = index.getAll(IDBKeyRange.only(false)); // Get unsynced items
 
       request.onsuccess = () => resolve(request.result);
       request.onerror = () => reject(request.error);

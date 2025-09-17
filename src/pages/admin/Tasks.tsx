@@ -3,7 +3,7 @@ import Layout from '../../components/Layout';
 import TaskList from '../../components/TaskList';
 import LocationAnalytics from '../../components/admin/LocationAnalytics';
 import RouteOptimizer from '../../components/admin/RouteOptimizer';
-import { PlusIcon, ChartBarIcon, RouteIcon } from '@heroicons/react/outline';
+import { PlusIcon, ChartBarIcon, TruckIcon } from '@heroicons/react/outline';
 import { ResponsiveContainer, ResponsiveCard } from '../../components/ui/ResponsiveComponents';
 import { withPermission } from '../../components/withPermission';
 import { useState } from 'react';
@@ -38,7 +38,7 @@ function AdminTasks() {
                   onClick={() => setShowRouteOptimizer(true)}
                   className="w-full sm:w-auto inline-flex items-center justify-center px-4 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 touch-manipulation transform active:scale-95 transition-transform"
                 >
-                  <RouteIcon className="h-5 w-5 mr-2" />
+                  <TruckIcon className="h-5 w-5 mr-2" />
                   Route Optimizer
                 </button>
                 
@@ -81,6 +81,7 @@ function AdminTasks() {
         {showRouteOptimizer && (
           <RouteOptimizer
             onClose={() => setShowRouteOptimizer(false)}
+            employeeId={undefined}
           />
         )}
       </ResponsiveContainer>
