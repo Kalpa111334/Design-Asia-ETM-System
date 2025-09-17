@@ -20,6 +20,7 @@ export default function TaskPool() {
   const [employees, setEmployees] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
   const [assigningTask, setAssigningTask] = useState<string | null>(null);
+  const [selectedAssigneesByTask, setSelectedAssigneesByTask] = useState<Record<string, Set<string>>>({});
 
   useEffect(() => {
     fetchTasks();
@@ -93,6 +94,18 @@ export default function TaskPool() {
     }
   }
 
+  function toggleAssignee(taskId: string, employeeId: string) {
+    setSelectedAssigneesByTask((prev: Record<string, Set<string>>) => {
+      const current = new Set(prev[taskId] || []);
+      if (current.has(employeeId)) {
+        current.delete(employeeId);
+      } else {
+        current.add(employeeId);
+      }
+      return { ...prev, [taskId]: current };
+    });
+  }
+
   async function assignTask(taskId: string, employeeId: string) {
     try {
       const { error } = await supabase
@@ -111,6 +124,39 @@ export default function TaskPool() {
     } catch (error) {
       console.error('Error assigning task:', error);
       toast.error('Failed to assign task');
+    }
+  }
+
+  async function assignMultiple(taskId: string) {
+    try {
+      const selection = Array.from(selectedAssigneesByTask[taskId] || []);
+      if (selection.length === 0) {
+        toast.error('Select at least one employee');
+        return;
+      }
+
+      // Set primary assignee for compatibility
+      const primaryAssignee = selection[0];
+      const { error: updateError } = await supabase
+        .from('tasks')
+        .update({ assigned_to: primaryAssignee, updated_at: new Date().toISOString() })
+        .eq('id', taskId);
+      if (updateError) throw updateError;
+
+      // Insert all assignees into task_assignees (ignore duplicates)
+      const rows = selection.map((userId) => ({ task_id: taskId, user_id: userId }));
+      const { error: insertError } = await supabase
+        .from('task_assignees')
+        .upsert(rows, { onConflict: 'task_id,user_id' });
+      if (insertError) throw insertError;
+
+      toast.success('Task assigned to selected employees');
+      setAssigningTask(null);
+      setSelectedAssigneesByTask((prev: Record<string, Set<string>>) => ({ ...prev, [taskId]: new Set() }));
+      fetchTasks();
+    } catch (error) {
+      console.error('Error assigning multiple employees:', error);
+      toast.error('Failed to assign to selected employees');
     }
   }
 
@@ -178,7 +224,7 @@ export default function TaskPool() {
             ) : (
               <div className="overflow-x-auto">
                 <ul role="list" className="divide-y divide-gray-200">
-                  {tasks.map((task) => (
+                  {tasks.map((task: Task) => (
                     <li key={task.id} className="px-3 sm:px-4 py-4 hover:bg-gray-50 transition-colors">
                       <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
                         {/* Task Info */}
@@ -218,26 +264,37 @@ export default function TaskPool() {
                         {/* Assignment Controls */}
                         <div className="flex-shrink-0">
                           {assigningTask === task.id ? (
-                            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-3">
-                              <select
-                                className="block w-full sm:w-48 pl-3 pr-10 py-2 text-sm border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 rounded-md touch-manipulation"
-                                onChange={(e) => assignTask(task.id, e.target.value)}
-                                defaultValue=""
-                                aria-label="Select employee to assign task"
-                              >
-                                <option value="" disabled>Select Employee</option>
-                                {employees.map((employee) => (
-                                  <option key={employee.id} value={employee.id}>
-                                    {employee.full_name}
-                                  </option>
-                                ))}
-                              </select>
-                              <button
-                                onClick={() => setAssigningTask(null)}
-                                className="w-full sm:w-auto inline-flex items-center justify-center px-3 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 touch-manipulation transform active:scale-95 transition-transform"
-                              >
-                                Cancel
-                              </button>
+                            <div className="flex flex-col gap-2 sm:gap-3">
+                              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-48 overflow-auto border rounded-md p-2">
+                                {employees.map((employee: User) => {
+                                  const selected = (selectedAssigneesByTask[task.id] || new Set()).has(employee.id);
+                                  return (
+                                    <label key={employee.id} className="inline-flex items-center gap-2 text-sm text-gray-700">
+                                      <input
+                                        type="checkbox"
+                                        className="h-4 w-4 text-indigo-600 border-gray-300 rounded"
+                                        checked={selected}
+                                        onChange={() => toggleAssignee(task.id, employee.id)}
+                                      />
+                                      <span>{employee.full_name}</span>
+                                    </label>
+                                  );
+                                })}
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <button
+                                  onClick={() => assignMultiple(task.id)}
+                                  className="inline-flex items-center justify-center px-3 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 touch-manipulation transform active:scale-95 transition-transform"
+                                >
+                                  Assign Selected
+                                </button>
+                                <button
+                                  onClick={() => setAssigningTask(null)}
+                                  className="inline-flex items-center justify-center px-3 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 touch-manipulation transform active:scale-95 transition-transform"
+                                >
+                                  Cancel
+                                </button>
+                              </div>
                             </div>
                           ) : (
                             <button
