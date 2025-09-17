@@ -141,7 +141,9 @@ export default function TaskList({ isAdmin = false }: TaskListProps) {
           users!task_assignees_user_id_fkey (
             id,
             full_name,
-            email
+            email,
+            role,
+            created_at
           )
         `);
       
@@ -149,7 +151,7 @@ export default function TaskList({ isAdmin = false }: TaskListProps) {
 
       const assigneesMap = (data || []).reduce((acc, assignee) => {
         const taskId = assignee.task_id;
-        const user = assignee.users;
+        const user = assignee.users as unknown as User;
         
         if (!acc[taskId]) {
           acc[taskId] = [];
