@@ -123,31 +123,90 @@ export default function EmployeeDashboard() {
 
 	const fetchEmployeeStats = async () => {
 		try {
-			// Fetch all tasks for the employee with attachments
-            // Fetch tasks assigned directly and via task_assignees
-            const { data: directTasks, error: directErr } = await supabase
-                .from('tasks')
-                .select(`
-                    *,
-                    task_attachments(*)
-                `)
-                .eq('assigned_to', user?.id);
+			console.log('🔍 DASHBOARD DEBUG: Fetching tasks for user:', user?.id);
 
-            const { data: viaAssignees, error: assigneesErr } = await supabase
-                .from('task_assignees')
-                .select('task:tasks(*, task_attachments(*))')
-                .eq('user_id', user?.id);
+			// Method 1: Try using the v_user_tasks view first
+			let tasks: any[] = [];
+			let error: any = null;
 
-            const error = directErr || assigneesErr || null;
-            const tasks = (() => {
-                const primary = directTasks || [];
-                const joined = (viaAssignees || []).map((r: any) => r.task).filter(Boolean);
-                const byId = new Map<string, any>();
-                [...primary, ...joined].forEach((t: any) => byId.set(t.id, t));
-                return Array.from(byId.values());
-            })();
+			try {
+				const { data: viewTasks, error: viewError } = await supabase
+					.from('v_user_tasks')
+					.select('*, task_attachments(*)')
+					.order('created_at', { ascending: false });
 
-			if (error) throw error;
+				if (!viewError && viewTasks && viewTasks.length > 0) {
+					console.log('🔍 DASHBOARD DEBUG: Successfully fetched tasks using v_user_tasks view:', viewTasks.length);
+					tasks = viewTasks;
+				} else {
+					throw new Error('View method failed');
+				}
+			} catch (viewError) {
+				console.log('🔍 DASHBOARD DEBUG: View method failed, using separate queries');
+				
+				// Method 2: Fetch tasks assigned directly and via task_assignees
+				const { data: directTasks, error: directErr } = await supabase
+					.from('tasks')
+					.select(`
+						*,
+						task_attachments(*)
+					`)
+					.eq('assigned_to', user?.id);
+
+				const { data: viaAssignees, error: assigneesErr } = await supabase
+					.from('task_assignees')
+					.select('task:tasks(*, task_attachments(*))')
+					.eq('user_id', user?.id);
+
+				error = directErr || assigneesErr || null;
+				
+				if (!error) {
+					const primary = directTasks || [];
+					const joined = (viaAssignees || []).map((r: any) => r.task).filter(Boolean);
+					const byId = new Map<string, any>();
+					[...primary, ...joined].forEach((t: any) => byId.set(t.id, t));
+					tasks = Array.from(byId.values());
+				}
+			}
+
+			// Fallback method if primary methods fail
+			if ((error || !tasks || tasks.length === 0) && user?.id) {
+				console.log('🔍 DASHBOARD DEBUG: Primary methods failed, trying fallback approach');
+				
+				// Get all task IDs for the user
+				const { data: directTasksOnly, error: directError } = await supabase
+					.from('tasks')
+					.select('id')
+					.eq('assigned_to', user.id);
+
+				const { data: assigneeTaskIds, error: assigneeError } = await supabase
+					.from('task_assignees')
+					.select('task_id')
+					.eq('user_id', user.id);
+
+				if (!directError || !assigneeError) {
+					const allTaskIds = new Set<string>();
+					(directTasksOnly || []).forEach(task => allTaskIds.add(task.id));
+					(assigneeTaskIds || []).forEach(item => allTaskIds.add(item.task_id));
+
+					if (allTaskIds.size > 0) {
+						// Fetch full task data with attachments
+						const { data: allTasksData, error: allTasksError } = await supabase
+							.from('tasks')
+							.select('*, task_attachments(*)')
+							.in('id', Array.from(allTaskIds))
+							.order('created_at', { ascending: false });
+
+						if (!allTasksError && allTasksData) {
+							tasks = allTasksData;
+							error = null;
+							console.log('🔍 DASHBOARD DEBUG: Fallback method found tasks:', tasks.length);
+						}
+					}
+				}
+			}
+
+			if (error && (!tasks || tasks.length === 0)) throw error;
 
 			if (tasks) {
 				const completedTasks = tasks.filter(task => task.status === 'Completed');
