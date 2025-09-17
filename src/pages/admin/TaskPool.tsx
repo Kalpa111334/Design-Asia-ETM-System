@@ -244,7 +244,8 @@ export default function TaskPool() {
                                   const names = selected
                                     .map((id) => employees.find((e) => e.id === id)?.full_name)
                                     .filter(Boolean) as string[];
-                                  return names.join(', ');
+                                  if (names.length === 1) return names[0];
+                                  return `${names[0]} + ${names.length - 1} selected`;
                                 }
                                 return 'Unassigned';
                               })()}
