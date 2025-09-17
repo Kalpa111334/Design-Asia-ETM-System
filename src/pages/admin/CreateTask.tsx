@@ -27,7 +27,8 @@ export default function CreateTask() {
             title: formData.title,
             description: formData.description,
             priority: formData.priority,
-            assigned_to: formData.assigned_to,
+            // keep single assignee for backward compatibility (first selected)
+            assigned_to: (formData.assigned_to_ids && formData.assigned_to_ids[0]) || formData.assigned_to || null,
             due_date: formData.due_date,
             start_date: formData.start_date,
             end_date: formData.end_date,
@@ -50,6 +51,24 @@ export default function CreateTask() {
         .single();
 
       if (taskError) throw taskError;
+
+      // Create multi-assignee links if provided
+      if (task && Array.isArray(formData.assigned_to_ids) && formData.assigned_to_ids.length > 0) {
+        const assigneesPayload = formData.assigned_to_ids
+          .filter((uid: string) => !!uid)
+          .map((uid: string) => ({ task_id: task.id, user_id: uid }));
+
+        if (assigneesPayload.length > 0) {
+          const { error: assigneesError } = await supabase
+            .from('task_assignees')
+            .insert(assigneesPayload);
+
+          if (assigneesError) {
+            console.error('Error inserting task assignees:', assigneesError);
+            // Non-fatal; continue
+          }
+        }
+      }
 
       // Create task locations if provided
       if (formData.locations && formData.locations.length > 0 && task) {

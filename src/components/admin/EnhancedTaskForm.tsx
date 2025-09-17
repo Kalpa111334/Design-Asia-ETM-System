@@ -33,6 +33,7 @@ interface FormInputs {
   status: 'Completed' | 'Planned' | 'In Progress' | 'Not Started';
   priority: 'Low' | 'Medium' | 'High';
   assigned_to: string;
+  assigned_to_ids: string[]; // new multi-assign
   due_date: string;
   start_date: string;
   end_date: string;
@@ -75,11 +76,12 @@ export default function EnhancedTaskForm({ onSubmit, initialData, isEdit = false
       price: 'Rs. 0',
       location_required: false,
       locations: [],
-      time_assigning: 60, // Default 60 minutes
+      time_assigning: 60,
       time_assigning_hours: 1,
       time_assigning_minutes: 0,
-      estimated_time: 60, // Default 60 minutes
+      estimated_time: 60,
       attachments: [],
+      assigned_to_ids: [],
       ...initialData,
     },
   });
@@ -103,13 +105,11 @@ export default function EnhancedTaskForm({ onSubmit, initialData, isEdit = false
     if (initialData?.price) {
       setPriceInput(formatCurrency(initialData.price));
     }
-    // Initialize locations from task_locations if editing
     if (isEdit && initialData?.id) {
       fetchTaskLocations(initialData.id);
     }
   }, [initialData]);
 
-  // Close dropdown when clicking outside
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (isStatusDropdownOpen) {
@@ -173,7 +173,7 @@ export default function EnhancedTaskForm({ onSubmit, initialData, isEdit = false
     setValue('time_assigning', totalMinutes);
     setValue('time_assigning_hours', hours);
     setValue('time_assigning_minutes', minutes);
-    setValue('estimated_time', totalMinutes); // Also set estimated_time
+    setValue('estimated_time', totalMinutes);
   };
 
   const handleTimeStringChange = (timeString: string) => {
@@ -182,7 +182,7 @@ export default function EnhancedTaskForm({ onSubmit, initialData, isEdit = false
     setValue('time_assigning', parsed.totalMinutes);
     setValue('time_assigning_hours', parsed.hours);
     setValue('time_assigning_minutes', parsed.minutes);
-    setValue('estimated_time', parsed.totalMinutes); // Also set estimated_time
+    setValue('estimated_time', parsed.totalMinutes);
   };
 
   const applyTimeSuggestion = (hours: number, minutes: number) => {
@@ -195,7 +195,7 @@ export default function EnhancedTaskForm({ onSubmit, initialData, isEdit = false
       const newLocations = [...locations];
       newLocations[activeLocationIndex] = {
         ...newLocations[activeLocationIndex],
-        geofence_id: null, // Clear geofence when coordinates are selected
+        geofence_id: null,
         latitude: location.lat,
         longitude: location.lng,
         radius_meters: newLocations[activeLocationIndex].radius_meters || 100,
@@ -208,7 +208,6 @@ export default function EnhancedTaskForm({ onSubmit, initialData, isEdit = false
         newMethods[activeLocationIndex] = 'coordinates';
         return newMethods;
       });
-      // Hide map picker after location is selected
       setShowMapPicker(false);
     }
   };
@@ -252,7 +251,6 @@ export default function EnhancedTaskForm({ onSubmit, initialData, isEdit = false
     }];
     setValue('locations', newLocations);
     setLocationMethods([...locationMethods, 'coordinates']);
-    // Automatically show map picker for the new location
     setActiveLocationIndex(locations.length);
     setShowMapPicker(true);
   };
@@ -272,7 +270,6 @@ export default function EnhancedTaskForm({ onSubmit, initialData, isEdit = false
     newMethods[index] = newMethods[index] === 'geofence' ? 'coordinates' : 'geofence';
     setLocationMethods(newMethods);
 
-    // Clear location data when switching methods
     const newLocations = [...locations];
     newLocations[index] = {
       ...newLocations[index],
@@ -283,7 +280,6 @@ export default function EnhancedTaskForm({ onSubmit, initialData, isEdit = false
     };
     setValue('locations', newLocations);
     
-    // If switching to coordinates, show map picker
     if (newMethods[index] === 'coordinates') {
       setActiveLocationIndex(index);
       setShowMapPicker(true);
@@ -292,7 +288,6 @@ export default function EnhancedTaskForm({ onSubmit, initialData, isEdit = false
 
   const handleFormSubmit = async (data: FormInputs) => {
     try {
-      // Validate locations if required
       if (data.location_required && (!data.locations || data.locations.length === 0)) {
         throw new Error('At least one location is required');
       }
@@ -317,7 +312,10 @@ export default function EnhancedTaskForm({ onSubmit, initialData, isEdit = false
           radius_meters: loc.radius_meters || 100,
           arrival_required: loc.arrival_required || false,
           departure_required: loc.departure_required || false
-        }))
+        })),
+        // keep single assigned_to for backward compatibility with any legacy code
+        assigned_to: data.assigned_to || (data.assigned_to_ids && data.assigned_to_ids[0]) || '',
+        assigned_to_ids: data.assigned_to_ids || (data.assigned_to ? [data.assigned_to] : []),
       };
 
       onSubmit(formattedData);
@@ -438,23 +436,39 @@ export default function EnhancedTaskForm({ onSubmit, initialData, isEdit = false
         </div>
 
         <div>
-          <label htmlFor="assigned_to" className="block text-sm font-medium text-gray-700">
-            Assign To
+          <label htmlFor="assigned_to_ids" className="block text-sm font-medium text-gray-700">
+            Assign To (one or more)
           </label>
           <select
-            id="assigned_to"
-            {...register('assigned_to', { required: 'Please assign the task to an employee' })}
-            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+            id="assigned_to_ids"
+            multiple
+            {...register('assigned_to_ids')}
+            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm h-32"
           >
-            <option value="">Select Employee</option>
             {employees.map((employee) => (
               <option key={employee.id} value={employee.id}>
                 {employee.full_name}
               </option>
             ))}
           </select>
-          {errors.assigned_to && (
-            <p className="mt-1 text-sm text-red-600">{errors.assigned_to.message}</p>
+          {/* Backward-compatible single select, optional */}
+          <div className="mt-2 text-xs text-gray-500">
+            If you select none above, the first selection from this dropdown will be used.
+          </div>
+          <select
+            id="assigned_to"
+            {...register('assigned_to')}
+            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+          >
+            <option value="">Select Employee (optional)</option>
+            {employees.map((employee) => (
+              <option key={employee.id} value={employee.id}>
+                {employee.full_name}
+              </option>
+            ))}
+          </select>
+          {(errors as any).assigned_to_ids && (
+            <p className="mt-1 text-sm text-red-600">Assign at least one employee</p>
           )}
         </div>
       </div>

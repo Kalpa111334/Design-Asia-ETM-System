@@ -65,19 +65,30 @@ export default function TaskList({ isAdmin = false }: TaskListProps) {
         return;
       }
 
-      let query = supabase.from('tasks').select('*');
-
       if (!isAdmin) {
-        query = query.eq('assigned_to', user.id);
-      }
+        const { data: directTasks, error: directErr } = await supabase.from('tasks').select('*').eq('assigned_to', user.id);
+        const { data: viaAssignees, error: assigneesErr } = await supabase
+          .from('task_assignees')
+          .select('task:tasks(*)')
+          .eq('user_id', user.id);
 
-      const { data, error } = await query;
-      if (error) {
-        console.error('Supabase error fetching tasks:', error);
-        throw new Error(`Database error: ${error.message}`);
+        const error = directErr || assigneesErr || null;
+        if (error) {
+          console.error('Supabase error fetching tasks:', error);
+          throw new Error(`Database error: ${error.message}`);
+        }
+        const joined = (viaAssignees || []).map((r: any) => r.task).filter(Boolean);
+        const byId = new Map<string, any>();
+        [...(directTasks || []), ...joined].forEach((t: any) => byId.set(t.id, t));
+        setTasks(Array.from(byId.values()));
+      } else {
+        const { data, error } = await supabase.from('tasks').select('*');
+        if (error) {
+          console.error('Supabase error fetching tasks:', error);
+          throw new Error(`Database error: ${error.message}`);
+        }
+        setTasks(data || []);
       }
-
-      setTasks(data || []);
     } catch (error: any) {
       console.error('Error fetching tasks:', error);
       
