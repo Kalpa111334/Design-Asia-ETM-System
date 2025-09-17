@@ -238,7 +238,7 @@ export default function TaskPool() {
                                 {task.priority}
                               </span>
                               <span
-                                className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-gray-100 text-gray-800"
+                                className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-gray-100 text-gray-800 max-w-[220px] whitespace-nowrap overflow-hidden text-ellipsis"
                                 title={(() => {
                                   const selected = Array.from(selectedAssigneesByTask[task.id] || new Set<string>());
                                   const names = selected
