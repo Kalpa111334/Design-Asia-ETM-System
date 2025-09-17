@@ -86,10 +86,10 @@ function Tasks() {
         [...data, ...joined].forEach((t: any) => { byId.set(t.id, t); });
         data = Array.from(byId.values()).sort((a, b) => (new Date(b.created_at).getTime() - new Date(a.created_at).getTime()));
       }
-      const error = directErr || assigneesErr || null;
+      const combinedError = directErr || assigneesErr || null;
 
       // If that fails or returns no attachments, try a different approach
-      if (error || !data || data.length === 0) {
+      if (combinedError || !data || data.length === 0) {
         console.log('🔍 DEBUG: Original query failed or returned no data, trying alternative query...');
         
         // Try fetching tasks and attachments separately
@@ -124,12 +124,11 @@ function Tasks() {
         );
 
         data = tasksWithAttachments;
-        error = null;
       }
 
-      if (error) {
-        console.error('Supabase error fetching tasks:', error);
-        throw new Error(`Database error: ${error}`);
+      if (combinedError && (!data || data.length === 0)) {
+        console.error('Supabase error fetching tasks:', combinedError);
+        throw new Error(`Database error: ${combinedError}`);
       }
       
       const processedTasks = (data || []).map(task => ({
