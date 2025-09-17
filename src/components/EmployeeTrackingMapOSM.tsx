@@ -331,7 +331,11 @@ function MapControls({
   isPlaying,
   onTogglePlay,
   speed,
-  onSpeedChange
+  onSpeedChange,
+  show3D,
+  onToggle3D,
+  onDownloadCSV,
+  onDownloadPDF
 }: {
   onSriLankaView: () => void;
   onResetView: () => void;
@@ -351,6 +355,10 @@ function MapControls({
   onTogglePlay: () => void;
   speed: number;
   onSpeedChange: (speed: number) => void;
+  show3D: boolean;
+  onToggle3D: () => void;
+  onDownloadCSV: () => void;
+  onDownloadPDF: () => void;
 }) {
   const [isExpanded, setIsExpanded] = useState(false);
 
@@ -447,6 +455,15 @@ function MapControls({
               />
               <span className="ml-2 text-sm text-gray-700">Follow Mode</span>
             </label>
+            <label className="flex items-center cursor-pointer">
+              <input
+                type="checkbox"
+                checked={show3D}
+                onChange={onToggle3D}
+                className="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500 touch-manipulation"
+              />
+              <span className="ml-2 text-sm text-gray-700">3D Route</span>
+            </label>
           </div>
         </div>
 
@@ -483,10 +500,10 @@ function MapControls({
           </div>
         </div>
 
-        {/* Refresh Info */}
+        {/* Refresh & Export */}
             <div className="space-y-3">
               <label className="block text-sm font-medium text-gray-700">
-            Last Refresh
+            Last Refresh & Export
           </label>
           <div className="text-sm text-gray-600">
                 <div className="mb-2">{lastRefresh.toLocaleTimeString()}</div>
@@ -498,6 +515,22 @@ function MapControls({
               <RefreshIcon className={`h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
               <span>{isLoading ? 'Refreshing...' : 'Refresh'}</span>
             </button>
+            <div className="grid grid-cols-2 gap-2 mt-2">
+              <button
+                onClick={onDownloadCSV}
+                disabled={!selectedEmployee}
+                className="w-full bg-gray-100 text-gray-800 py-2 px-3 rounded-md hover:bg-gray-200 disabled:opacity-50 text-sm font-medium touch-manipulation"
+              >
+                Export CSV
+              </button>
+              <button
+                onClick={onDownloadPDF}
+                disabled={!selectedEmployee}
+                className="w-full bg-gray-100 text-gray-800 py-2 px-3 rounded-md hover:bg-gray-200 disabled:opacity-50 text-sm font-medium touch-manipulation"
+              >
+                Export PDF
+              </button>
+            </div>
           </div>
         </div>
           </ResponsiveGrid>
@@ -516,7 +549,8 @@ function MapComponent({
   followMode,
   currentStyle,
   isPlaying,
-  speed
+  speed,
+  show3D
 }: {
   locations: EmployeeLocation[];
   selectedEmployee: EmployeeLocation | null;
@@ -526,6 +560,7 @@ function MapComponent({
   currentStyle: string;
   isPlaying: boolean;
   speed: number;
+  show3D: boolean;
 }) {
   const map = useMap();
 
@@ -649,18 +684,38 @@ function MapComponent({
         </Marker>
       ))}
 
-      {/* Selected Employee Path with enhanced styling */}
+      {/* Selected Employee Path with enhanced styling and 3D effect */}
       {selectedEmployeePath.length > 1 && (
-        <Polyline
-          positions={selectedEmployeePath.map(p => [p.lat, p.lng] as [number, number])}
-          pathOptions={{
-            color: '#f59e0b',
-            weight: 6,
-            opacity: 0.9,
-            dashArray: isPlaying ? '10, 10' : undefined,
-            dashOffset: isPlaying ? '0' : undefined,
-          }}
-        />
+        <>
+          {/* Base path */}
+          <Polyline
+            positions={selectedEmployeePath.map(p => [p.lat, p.lng] as [number, number])}
+            pathOptions={{
+              color: '#f59e0b',
+              weight: 6,
+              opacity: 0.95,
+              dashArray: isPlaying ? '10, 10' : undefined,
+              dashOffset: isPlaying ? '0' : undefined,
+            }}
+          />
+          {show3D && (
+            <>
+              {/* Shadow layers to simulate depth */}
+              <Polyline
+                positions={selectedEmployeePath.map(p => [p.lat, p.lng] as [number, number])}
+                pathOptions={{ color: '#0f172a', weight: 12, opacity: 0.15 }}
+              />
+              <Polyline
+                positions={selectedEmployeePath.map(p => [p.lat, p.lng] as [number, number])}
+                pathOptions={{ color: '#0f172a', weight: 10, opacity: 0.1 }}
+              />
+              <Polyline
+                positions={selectedEmployeePath.map(p => [p.lat, p.lng] as [number, number])}
+                pathOptions={{ color: '#0f172a', weight: 8, opacity: 0.08 }}
+              />
+            </>
+          )}
+        </>
       )}
 
       {/* Accuracy Circle for Selected Employee */}
@@ -719,6 +774,7 @@ export default function EmployeeTrackingMapOSM() {
   const [currentStyle, setCurrentStyle] = useState<string>('light');
   const [isPlaying, setIsPlaying] = useState<boolean>(false);
   const [speed, setSpeed] = useState<number>(1);
+  const [show3D, setShow3D] = useState<boolean>(false);
 
   const fetchAddress = useCallback(async (lat: number, lng: number): Promise<string> => {
     const cacheKey = `${lat.toFixed(4)},${lng.toFixed(4)}`;
@@ -855,6 +911,52 @@ export default function EmployeeTrackingMapOSM() {
     setSelectedEmployee(employee);
     fetchMovementHistory(employee.user_id);
   }, [fetchMovementHistory]);
+
+  // Export helpers
+  const downloadCSV = useCallback(() => {
+    if (!selectedEmployee || selectedEmployeePath.length === 0) return;
+    const header = ['timestamp', 'latitude', 'longitude'];
+    const rows = selectedEmployeePath.map(p => [p.timestamp, p.lat, p.lng]);
+    const csv = [header, ...rows].map(r => r.join(',')).join('\n');
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${selectedEmployee.full_name.replace(/\s+/g, '_')}_moment_history.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }, [selectedEmployee, selectedEmployeePath]);
+
+  const downloadPDF = useCallback(async () => {
+    if (!selectedEmployee || selectedEmployeePath.length === 0) return;
+    // Lightweight client PDF using jsPDF
+    const { default: jsPDF } = await import('jspdf');
+    const doc = new jsPDF();
+    doc.setFontSize(14);
+    doc.text('Moment History Report', 14, 16);
+    doc.setFontSize(11);
+    doc.text(`Employee: ${selectedEmployee.full_name}`, 14, 24);
+    doc.text(`Points: ${selectedEmployeePath.length}`, 14, 30);
+    doc.text(`Distance: ${trackingMetrics.totalDistance} km`, 14, 36);
+    doc.text(`Avg Speed: ${trackingMetrics.averageSpeed} km/h`, 14, 42);
+    doc.text(`Active: ${trackingMetrics.activeTime} min | Idle: ${trackingMetrics.idleTime} min`, 14, 48);
+    // Table-like listing (first 40 rows for brevity)
+    let y = 58;
+    const maxRows = 40;
+    doc.setFontSize(9);
+    doc.text('Timestamp', 14, y);
+    doc.text('Latitude', 80, y);
+    doc.text('Longitude', 120, y);
+    y += 6;
+    selectedEmployeePath.slice(0, maxRows).forEach(p => {
+      if (y > 280) { doc.addPage(); y = 20; }
+      doc.text(new Date(p.timestamp).toLocaleString(), 14, y);
+      doc.text(String(p.lat.toFixed(6)), 80, y);
+      doc.text(String(p.lng.toFixed(6)), 120, y);
+      y += 6;
+    });
+    doc.save(`${selectedEmployee.full_name.replace(/\s+/g, '_')}_moment_history.pdf`);
+  }, [selectedEmployee, selectedEmployeePath, trackingMetrics]);
 
   // Map control functions
   const mapRef = useRef<L.Map>(null);
@@ -1002,6 +1104,10 @@ export default function EmployeeTrackingMapOSM() {
           onTogglePlay={togglePlay}
           speed={speed}
           onSpeedChange={setSpeed}
+          show3D={show3D}
+          onToggle3D={() => setShow3D(!show3D)}
+          onDownloadCSV={downloadCSV}
+          onDownloadPDF={downloadPDF}
         />
 
         {/* Selected Employee Metrics */}
@@ -1081,6 +1187,7 @@ export default function EmployeeTrackingMapOSM() {
               currentStyle={currentStyle}
               isPlaying={isPlaying}
               speed={speed}
+              show3D={show3D}
             />
           </MapContainer>
         </div>
