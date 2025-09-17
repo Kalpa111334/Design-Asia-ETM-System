@@ -67,63 +67,121 @@ function Tasks() {
         return;
       }
 
-      // Try fetching tasks assigned directly or via task_assignees
-      const { data: directTasks, error: directErr } = await supabase
-        .from('tasks')
-        .select('*, task_proofs(status), task_attachments(*)')
-        .eq('assigned_to', user.id)
-        .order('created_at', { ascending: false });
+      console.log('🔍 DEBUG: Fetching tasks for user:', user.id);
 
-      const { data: viaAssignees, error: assigneesErr } = await supabase
-        .from('task_assignees')
-        .select('task:tasks(*, task_proofs(status), task_attachments(*))')
-        .eq('user_id', user.id);
+      // Method 1: Try using the v_user_tasks view (if it exists and works)
+      let data: any[] = [];
+      let combinedError: any = null;
 
-      let data = (directTasks || []);
-      if (viaAssignees && viaAssignees.length > 0) {
-        const joined = viaAssignees.map((r: any) => r.task).filter(Boolean);
-        const byId = new Map<string, any>();
-        [...data, ...joined].forEach((t: any) => { byId.set(t.id, t); });
-        data = Array.from(byId.values()).sort((a, b) => (new Date(b.created_at).getTime() - new Date(a.created_at).getTime()));
-      }
-      const combinedError = directErr || assigneesErr || null;
+      try {
+        const { data: viewTasks, error: viewError } = await supabase
+          .from('v_user_tasks')
+          .select('*, task_proofs(status), task_attachments(*)')
+          .order('created_at', { ascending: false });
 
-      // If that fails or returns no attachments, try a different approach
-      if (combinedError || !data || data.length === 0) {
-        console.log('🔍 DEBUG: Original query failed or returned no data, trying alternative query...');
+        if (!viewError && viewTasks && viewTasks.length > 0) {
+          console.log('🔍 DEBUG: Successfully fetched tasks using v_user_tasks view:', viewTasks.length);
+          data = viewTasks;
+        } else {
+          console.log('🔍 DEBUG: v_user_tasks view failed or returned no data, trying alternative method');
+          throw new Error('View method failed');
+        }
+      } catch (viewError) {
+        console.log('🔍 DEBUG: View method failed, using separate queries');
         
-        // Try fetching tasks and attachments separately
-        const { data: tasksData, error: tasksError } = await supabase
+        // Method 2: Fetch tasks assigned directly or via task_assignees separately
+        const { data: directTasks, error: directErr } = await supabase
           .from('tasks')
-          .select('*')
+          .select('*, task_proofs(status), task_attachments(*)')
           .eq('assigned_to', user.id)
           .order('created_at', { ascending: false });
 
-        if (tasksError) {
-          throw tasksError;
+        const { data: viaAssignees, error: assigneesErr } = await supabase
+          .from('task_assignees')
+          .select('task:tasks(*, task_proofs(status), task_attachments(*))')
+          .eq('user_id', user.id);
+
+        data = (directTasks || []);
+        if (viaAssignees && viaAssignees.length > 0) {
+          const joined = viaAssignees.map((r: any) => r.task).filter(Boolean);
+          const byId = new Map<string, any>();
+          [...data, ...joined].forEach((t: any) => { byId.set(t.id, t); });
+          data = Array.from(byId.values()).sort((a, b) => (new Date(b.created_at).getTime() - new Date(a.created_at).getTime()));
+        }
+        combinedError = directErr || assigneesErr || null;
+      }
+
+      // If that fails or returns no attachments, try a comprehensive fallback approach
+      if (combinedError || !data || data.length === 0) {
+        console.log('🔍 DEBUG: Primary queries failed or returned no data, trying comprehensive fallback...');
+        
+        // Fetch all tasks assigned to the user (both direct and via task_assignees)
+        const { data: directTasksOnly, error: directError } = await supabase
+          .from('tasks')
+          .select('*')
+          .eq('assigned_to', user.id);
+
+        const { data: assigneeTaskIds, error: assigneeError } = await supabase
+          .from('task_assignees')
+          .select('task_id')
+          .eq('user_id', user.id);
+
+        if (directError && assigneeError) {
+          throw new Error(`Failed to fetch tasks: ${directError?.message || assigneeError?.message}`);
         }
 
-        // Fetch attachments for each task
-        const tasksWithAttachments = await Promise.all(
-          (tasksData || []).map(async (task) => {
-            const { data: attachments, error: attachmentsError } = await supabase
-              .from('task_attachments')
-              .select('*')
-              .eq('task_id', task.id);
+        // Combine task IDs from both sources
+        const allTaskIds = new Set<string>();
+        (directTasksOnly || []).forEach(task => allTaskIds.add(task.id));
+        (assigneeTaskIds || []).forEach(item => allTaskIds.add(item.task_id));
 
-            if (attachmentsError) {
-              console.error('Error fetching attachments for task:', task.id, attachmentsError);
-            }
+        if (allTaskIds.size === 0) {
+          console.log('🔍 DEBUG: No tasks found for user');
+          data = [];
+        } else {
+          // Fetch full task data for all task IDs
+          const { data: allTasksData, error: allTasksError } = await supabase
+            .from('tasks')
+            .select('*')
+            .in('id', Array.from(allTaskIds))
+            .order('created_at', { ascending: false });
 
-            return {
-              ...task,
-              task_attachments: attachments || [],
-              task_proofs: [] // We'll fetch this separately if needed
-            };
-          })
-        );
+          if (allTasksError) {
+            throw allTasksError;
+          }
 
-        data = tasksWithAttachments;
+          // Fetch attachments for each task
+          const tasksWithAttachments = await Promise.all(
+            (allTasksData || []).map(async (task) => {
+              const { data: attachments, error: attachmentsError } = await supabase
+                .from('task_attachments')
+                .select('*')
+                .eq('task_id', task.id);
+
+              const { data: proofs, error: proofsError } = await supabase
+                .from('task_proofs')
+                .select('status')
+                .eq('task_id', task.id);
+
+              if (attachmentsError) {
+                console.error('Error fetching attachments for task:', task.id, attachmentsError);
+              }
+
+              if (proofsError) {
+                console.error('Error fetching proofs for task:', task.id, proofsError);
+              }
+
+              return {
+                ...task,
+                task_attachments: attachments || [],
+                task_proofs: proofs || []
+              };
+            })
+          );
+
+          data = tasksWithAttachments;
+          console.log('🔍 DEBUG: Fallback method found tasks:', data.length);
+        }
       }
 
       if (combinedError && (!data || data.length === 0)) {
