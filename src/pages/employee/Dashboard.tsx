@@ -124,13 +124,28 @@ export default function EmployeeDashboard() {
 	const fetchEmployeeStats = async () => {
 		try {
 			// Fetch all tasks for the employee with attachments
-			const { data: tasks, error } = await supabase
-				.from('tasks')
-				.select(`
-					*,
-					task_attachments(*)
-				`)
-				.eq('assigned_to', user?.id);
+            // Fetch tasks assigned directly and via task_assignees
+            const { data: directTasks, error: directErr } = await supabase
+                .from('tasks')
+                .select(`
+                    *,
+                    task_attachments(*)
+                `)
+                .eq('assigned_to', user?.id);
+
+            const { data: viaAssignees, error: assigneesErr } = await supabase
+                .from('task_assignees')
+                .select('task:tasks(*, task_attachments(*))')
+                .eq('user_id', user?.id);
+
+            const error = directErr || assigneesErr || null;
+            const tasks = (() => {
+                const primary = directTasks || [];
+                const joined = (viaAssignees || []).map((r: any) => r.task).filter(Boolean);
+                const byId = new Map<string, any>();
+                [...primary, ...joined].forEach((t: any) => byId.set(t.id, t));
+                return Array.from(byId.values());
+            })();
 
 			if (error) throw error;
 
@@ -178,15 +193,29 @@ export default function EmployeeDashboard() {
 		if (!user) return;
 		
 		try {
-			const { data: tasks, error } = await supabase
-				.from('tasks')
-				.select(`
-					*,
-					task_attachments(*),
-					task_proofs(*)
-				`)
-				.eq('assigned_to', user.id)
-				.order('created_at', { ascending: false });
+            const { data: directTasks, error: directErr } = await supabase
+                .from('tasks')
+                .select(`
+                    *,
+                    task_attachments(*),
+                    task_proofs(*)
+                `)
+                .eq('assigned_to', user.id)
+                .order('created_at', { ascending: false });
+
+            const { data: viaAssignees, error: assigneesErr } = await supabase
+                .from('task_assignees')
+                .select('task:tasks(*, task_attachments(*), task_proofs(*))')
+                .eq('user_id', user.id);
+
+            const error = directErr || assigneesErr || null;
+            const tasks = (() => {
+                const primary = directTasks || [];
+                const joined = (viaAssignees || []).map((r: any) => r.task).filter(Boolean);
+                const byId = new Map<string, any>();
+                [...primary, ...joined].forEach((t: any) => byId.set(t.id, t));
+                return Array.from(byId.values());
+            })();
 
 			if (error) throw error;
 			setAllTasks(tasks || []);

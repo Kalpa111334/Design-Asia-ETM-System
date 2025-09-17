@@ -67,12 +67,26 @@ function Tasks() {
         return;
       }
 
-      // First, try the original query
-      let { data, error } = await supabase
+      // Try fetching tasks assigned directly or via task_assignees
+      const { data: directTasks, error: directErr } = await supabase
         .from('tasks')
         .select('*, task_proofs(status), task_attachments(*)')
         .eq('assigned_to', user.id)
         .order('created_at', { ascending: false });
+
+      const { data: viaAssignees, error: assigneesErr } = await supabase
+        .from('task_assignees')
+        .select('task:tasks(*, task_proofs(status), task_attachments(*))')
+        .eq('user_id', user.id);
+
+      let data = (directTasks || []);
+      if (viaAssignees && viaAssignees.length > 0) {
+        const joined = viaAssignees.map((r: any) => r.task).filter(Boolean);
+        const byId = new Map<string, any>();
+        [...data, ...joined].forEach((t: any) => { byId.set(t.id, t); });
+        data = Array.from(byId.values()).sort((a, b) => (new Date(b.created_at).getTime() - new Date(a.created_at).getTime()));
+      }
+      const error = directErr || assigneesErr || null;
 
       // If that fails or returns no attachments, try a different approach
       if (error || !data || data.length === 0) {
