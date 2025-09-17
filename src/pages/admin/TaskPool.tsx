@@ -238,7 +238,16 @@ export default function TaskPool() {
                                 {task.priority}
                               </span>
                               <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-gray-100 text-gray-800">
-                                Unassigned
+                              {(() => {
+                                const selected = Array.from(selectedAssigneesByTask[task.id] || new Set<string>());
+                                if (selected.length > 0) {
+                                  const names = selected
+                                    .map((id) => employees.find((e) => e.id === id)?.full_name)
+                                    .filter(Boolean) as string[];
+                                  return names.join(', ');
+                                }
+                                return 'Unassigned';
+                              })()}
                               </span>
                             </div>
                           </div>
