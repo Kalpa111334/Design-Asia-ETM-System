@@ -1,6 +1,6 @@
 import React from 'react';
 import Layout from '../../components/Layout';
-import GeofenceManager from '../../components/admin/GeofenceManager';
+import GeofenceManagerOSM from '../../components/admin/GeofenceManagerOSM';
 import { Geofence } from '../../services/GeofencingService';
 import { CogIcon } from '@heroicons/react/outline';
 
@@ -24,7 +24,7 @@ export default function LocationDashboard() {
               <CogIcon className="h-5 w-5 text-indigo-600" />
               <span className="text-sm sm:text-base font-medium">Geofence Management</span>
             </div>
-            <GeofenceManager
+            <GeofenceManagerOSM
               onGeofenceSelect={setSelectedGeofence}
               selectedGeofenceId={selectedGeofence?.id}
             />

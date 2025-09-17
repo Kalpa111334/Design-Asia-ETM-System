@@ -30,6 +30,7 @@ import TaskCountdown from '../../components/TaskCountdown';
 import DeleteTaskModal from '../../components/DeleteTaskModal';
 import AttachmentDisplay from '../../components/AttachmentDisplay';
 import TaskAttachmentModal from '../../components/TaskAttachmentModal';
+import TasksWithLocationMap from '../../components/employee/TasksWithLocationMap';
 import toast from 'react-hot-toast';
 import { formatCurrency } from '../../utils/currency';
 import {
@@ -42,7 +43,8 @@ import {
   PhotographIcon,
   CheckCircleIcon,
   TrashIcon,
-  EyeIcon
+  EyeIcon,
+  MapIcon
 } from '@heroicons/react/outline';
 
 function Tasks() {
@@ -54,6 +56,8 @@ function Tasks() {
   const [showSubmissionForm, setShowSubmissionForm] = useState(false);
   const [taskToDelete, setTaskToDelete] = useState<Task | null>(null);
   const [showAttachments, setShowAttachments] = useState<Task | null>(null);
+  const [showLocationMap, setShowLocationMap] = useState(false);
+  const [selectedLocationTaskId, setSelectedLocationTaskId] = useState<string | undefined>(undefined);
 
   useEffect(() => {
     fetchTasks();
@@ -401,6 +405,11 @@ function Tasks() {
     }
   };
 
+  const handleShowLocationTasks = (taskId?: string) => {
+    setSelectedLocationTaskId(taskId);
+    setShowLocationMap(true);
+  };
+
   const filteredTasks = tasks.filter(task => {
     if (filter === 'active') return (task.status !== 'Completed' || !task.hasApprovedProof) && task.status !== 'Planned';
     if (filter === 'completed') return task.status === 'Completed' && task.hasApprovedProof;
@@ -439,12 +448,21 @@ function Tasks() {
   return (
     <Layout>
       <div className="px-2 sm:px-4 md:px-6 lg:px-8">
-        <div className="sm:flex sm:items-center">
+        <div className="sm:flex sm:items-center sm:justify-between">
           <div className="sm:flex-auto">
             <h1 className="text-xl sm:text-3xl font-semibold text-gray-900">My Tasks</h1>
             <p className="mt-1 sm:mt-2 text-sm text-gray-700">
               A list of all your assigned tasks and their current status.
             </p>
+          </div>
+          <div className="mt-4 sm:mt-0">
+            <button
+              onClick={() => handleShowLocationTasks()}
+              className="w-full sm:w-auto inline-flex items-center justify-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 touch-manipulation transform active:scale-95 transition-transform"
+            >
+              <MapIcon className="h-5 w-5 mr-2" />
+              View Location Tasks
+            </button>
           </div>
         </div>
 
@@ -510,6 +528,12 @@ function Tasks() {
                             <CurrencyDollarIcon className="mr-1.5 h-4 w-4 sm:h-5 sm:w-5 flex-shrink-0 text-gray-400" />
                             {formatCurrency(task.price)}
                           </div>
+                          {(task as any).location_based && (
+                            <div className="flex items-center text-xs sm:text-sm text-indigo-600">
+                              <MapIcon className="mr-1.5 h-4 w-4 sm:h-5 sm:w-5 flex-shrink-0" />
+                              Location Required
+                            </div>
+                          )}
                           <div className="flex items-center">
                             <TaskCountdown dueDate={task.due_date} status={task.status} />
                           </div>
@@ -535,6 +559,18 @@ function Tasks() {
                               {task.task_attachments ? task.task_attachments.length : '0'}
                             </span>
                           </button>
+                          
+                          {/* View on Map Button for location-based tasks */}
+                          {(task as any).location_based && (
+                            <button
+                              onClick={() => handleShowLocationTasks(task.id)}
+                              className="inline-flex items-center px-2 py-1 border border-indigo-300 text-xs sm:text-sm font-medium rounded-md text-indigo-700 bg-indigo-50 hover:bg-indigo-100 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 touch-manipulation transform active:scale-95"
+                              title="View task location on map"
+                            >
+                              <MapIcon className="h-4 w-4" />
+                              <span className="ml-1 hidden sm:inline">Map</span>
+                            </button>
+                          )}
                           
                           {task.status !== 'Completed' && task.status !== 'Planned' && (
                             <>
@@ -616,6 +652,17 @@ function Tasks() {
         onClose={() => setShowAttachments(null)}
         task={showAttachments}
       />
+
+      {/* Location Tasks Map Modal */}
+      {showLocationMap && (
+        <TasksWithLocationMap
+          onClose={() => {
+            setShowLocationMap(false);
+            setSelectedLocationTaskId(undefined);
+          }}
+          selectedTaskId={selectedLocationTaskId}
+        />
+      )}
     </Layout>
   );
 }
