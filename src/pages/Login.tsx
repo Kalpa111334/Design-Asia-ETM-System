@@ -27,10 +27,11 @@ export default function Login() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('No user found');
 
-      // If employee role, enforce PIN approval gate
-      const { data: roleRow } = await supabase.from('users').select('role').eq('id', user.id).single();
+      // If employee role, enforce PIN approval ONLY if not yet verified
+      const { data: roleRow } = await supabase.from('users').select('role, is_login_verified').eq('id', user.id).single();
       const role = roleRow?.role || user.user_metadata?.role || 'employee';
-      if (role !== 'admin') {
+      const verified = !!roleRow?.is_login_verified;
+      if (role !== 'admin' && !verified) {
         // Create a short-lived PIN request and wait for approval via realtime for up to 30s
         const created = await LoginPinService.createPin(user.id, 30);
         if (!created.success || !created.pin) throw new Error(created.error || 'Failed to create login PIN');
@@ -67,6 +68,13 @@ export default function Login() {
                 }
               }
               toast.success('Successfully logged in!');
+              // Mark user verified after first approval (fire-and-forget)
+              supabase
+                .from('users')
+                .update({ is_login_verified: true })
+                .eq('id', user.id)
+                .then(() => {})
+                .catch(() => {});
             } else if (status === 'rejected' || status === 'expired') {
               toast.dismiss('pin-wait');
               toast.error('Login not approved');
@@ -152,6 +160,21 @@ export default function Login() {
       setLoading(false);
     }
   };
+
+  // If a session already exists, redirect immediately to the correct dashboard
+  useEffect(() => {
+    (async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.user) return;
+      const { data: userRow } = await supabase.from('users').select('role').eq('id', session.user.id).single();
+      const role = userRow?.role || session.user.user_metadata?.role || 'employee';
+      if (role === 'admin') {
+        navigate('/admin', { replace: true });
+      } else {
+        navigate('/employee', { replace: true });
+      }
+    })();
+  }, []);
 
   function proceedAfterLogin(role: 'admin' | 'employee') {
     if (role === 'admin') {
