@@ -69,12 +69,14 @@ export default function Login() {
               }
               toast.success('Successfully logged in!');
               // Mark user verified after first approval (fire-and-forget)
-              supabase
-                .from('users')
-                .update({ is_login_verified: true })
-                .eq('id', user.id)
-                .then(() => {})
-                .catch(() => {});
+              void (async () => {
+                try {
+                  await supabase
+                    .from('users')
+                    .update({ is_login_verified: true })
+                    .eq('id', user.id);
+                } catch {}
+              })();
             } else if (status === 'rejected' || status === 'expired') {
               toast.dismiss('pin-wait');
               toast.error('Login not approved');
