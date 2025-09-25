@@ -3,7 +3,6 @@ import { supabase } from '../../lib/supabase';
 import { Task } from '../../types/index';
 import { Link } from 'react-router-dom';
 import { PencilIcon } from '@heroicons/react/outline';
-import { Link } from 'react-router-dom';
 import { formatCurrency } from '../../utils/currency';
 import {
   CurrencyDollarIcon,

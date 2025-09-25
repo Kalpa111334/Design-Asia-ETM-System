@@ -101,9 +101,9 @@ export default function Jobs() {
       setLoading(true);
       
       // Add confirmation for status changes
-      if (formData.status && formData.status !== selectedJob.status) {
+      if ((formData as any).status && (formData as any).status !== selectedJob.status) {
         const confirmed = window.confirm(
-          `Are you sure you want to change the job status from "${selectedJob.status}" to "${formData.status}"?`
+          `Are you sure you want to change the job status from "${selectedJob.status}" to "${(formData as any).status}"?`
         );
         if (!confirmed) {
           setLoading(false);
@@ -577,7 +577,7 @@ export default function Jobs() {
         </div>
 
               <JobForm
-                initialData={{ job_category: selectedCategory }}
+                initialData={{ job_category: selectedCategory as 'DA' | 'AL' | 'TB' | undefined }}
                 onSubmit={handleCreateJob}
                 onCancel={handleCancel}
                 loading={loading}

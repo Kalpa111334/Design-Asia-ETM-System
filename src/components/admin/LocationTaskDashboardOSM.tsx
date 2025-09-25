@@ -487,65 +487,6 @@ export default function LocationTaskDashboardOSM() {
     mapRef.current.setZoom(Math.max(1, mapRef.current.getZoom() - 1));
   };
 
-  const centerToInputs = () => {
-    const lat = parseFloat(latInput);
-    const lon = parseFloat(lngInput);
-    if (Number.isFinite(lat) && Number.isFinite(lon) && mapRef.current) {
-      mapRef.current.setView([lat, lon], Math.max(18, mapRef.current.getZoom()));
-      setPickedPoint({ lat, lng: lon });
-    }
-  };
-
-  const getCurrentLocation = () => {
-    if (!navigator.geolocation) return;
-    navigator.geolocation.getCurrentPosition(
-      (pos) => {
-        const lat = pos.coords.latitude;
-        const lon = pos.coords.longitude;
-        setLatInput(String(lat));
-        setLngInput(String(lon));
-        if (mapRef.current) {
-          mapRef.current.setView([lat, lon], 18);
-        }
-        setPickedPoint({ lat, lng: lon });
-      },
-      () => {},
-      { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
-    );
-  };
-
-  const searchLocation = async () => {
-    const q = searchQuery.trim();
-    if (!q) return;
-    setIsSearching(true);
-    try {
-      const resp = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(q)}&addressdetails=1&limit=7`);
-      const data = await resp.json();
-      const items = (data || []).map((r: any) => ({ display_name: r.display_name, lat: parseFloat(r.lat), lon: parseFloat(r.lon) }));
-      setSearchResults(items);
-      if (items[0] && mapRef.current) {
-        mapRef.current.setView([items[0].lat, items[0].lon], 18);
-        setPickedPoint({ lat: items[0].lat, lng: items[0].lon });
-      }
-    } catch {
-      // ignore
-    } finally {
-      setIsSearching(false);
-    }
-  };
-
-  const zoomIn = () => {
-    if (!mapRef.current) return;
-    const z = mapRef.current.getZoom();
-    mapRef.current.setZoom(Math.min(25, z + 1));
-  };
-
-  const zoomOut = () => {
-    if (!mapRef.current) return;
-    const z = mapRef.current.getZoom();
-    mapRef.current.setZoom(Math.max(1, z - 1));
-  };
-
   if (isLoading) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
